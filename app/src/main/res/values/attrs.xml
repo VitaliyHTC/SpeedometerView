@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <declare-styleable name="SpeedometerView">
+        <attr name="backgroundColor" format="color"/>
+        <attr name="digitsColor" format="color"/>
+        <attr name="sectorBeforeArrowColor" format="color"/>
+        <attr name="sectorAfterArrowColor" format="color"/>
+        <attr name="arrowRadius" format="dimension"/>
+        <attr name="outerCircleColor" format="color"/>
+        <attr name="arrowColor" format="color"/>
+        <attr name="internalSectorRadius" format="dimension"/>
+        <attr name="externalSectorRadius" format="dimension"/>
+        <attr name="maximumSpeedometerSpeed" format="integer"/>
+    </declare-styleable>
+</resources>
