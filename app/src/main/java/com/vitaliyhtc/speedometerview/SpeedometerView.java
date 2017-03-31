@@ -6,6 +6,7 @@ import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -50,6 +51,7 @@ public class SpeedometerView extends ViewGroup {
      */
     public SpeedometerView(Context context) {
         super(context);
+        setWillNotDraw(false);
         init();
     }
 
@@ -65,6 +67,7 @@ public class SpeedometerView extends ViewGroup {
      */
     public SpeedometerView(Context context, AttributeSet attrs) {
         super(context, attrs);
+        setWillNotDraw(false);
 
         TypedArray a = context.getTheme().obtainStyledAttributes(attrs, R.styleable.SpeedometerView, 0, 0);
         try{
@@ -115,11 +118,6 @@ public class SpeedometerView extends ViewGroup {
         init();
     }
 
-    @Override
-    protected void onLayout(boolean changed, int l, int t, int r, int b) {
-        // Do nothing. Do not call the superclass method--that would start a layout pass
-        // on this view's children. SpeedometerView lays out its children in onSizeChanged().
-    }
 
 
 
@@ -246,18 +244,36 @@ public class SpeedometerView extends ViewGroup {
 
 
 
+    @Override
+    protected void onLayout(boolean changed, int l, int t, int r, int b) {
+        // Do nothing. Do not call the superclass method--that would start a layout pass
+        // on this view's children. SpeedometerView lays out its children in onSizeChanged().
+
+        // l, t, r, b - absolute numbers. To get relative - you must subtract t and l coordinate from r and b.
+        // 0, 0, r-l, b-t, - same as 0, 0, getWidth(), getHeight()
+        //Log.e("onLayout:: ", "l="+l+"; t="+t+"; r="+r+"; b="+b+";");
+        //Log.e("onLayout:: ", "rr="+(r-l)+"; rb="+(b-t)+"; width="+getWidth()+"; height="+getHeight()+";");
+
+        mOuterCircleView.layout(0, 0, getWidth(), getHeight());
+    }
+
+
 
 
 
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        //super.onMeasure(widthMeasureSpec, heightMeasureSpec);
-        setMeasuredDimension(MeasureSpec.getSize(widthMeasureSpec), MeasureSpec.getSize(heightMeasureSpec));
+        int width = MeasureSpec.getSize(widthMeasureSpec);
+        int height = MeasureSpec.getSize(heightMeasureSpec);
+
+        Log.e("SpeedometerView", "W="+width+"; H="+height+";");
+
+        setMeasuredDimension(width, height);
     }
 
     private void init(){
-
+        setLayerToSW(this);
 
         mOuterCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
@@ -266,14 +282,83 @@ public class SpeedometerView extends ViewGroup {
         mOuterCircleView = new OuterCircleView(getContext());
         addView(mOuterCircleView);
 
+
     }
 
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        canvas.drawColor(mOuterCircleColor);
+        //canvas.drawARGB(0xff, 0xf0, 0xf0, 0xf0);
+        canvas.drawColor(mBackgroundColor);
+
+        Log.e("SpeedometerView", "ViewGroup onDraw()");
     }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    private void setLayerToSW(View v) {
+        setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+    }
+
+    private void setLayerToHW(View v) {
+        setLayerType(View.LAYER_TYPE_HARDWARE, null);
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     private class OuterCircleView extends View {
 
@@ -285,20 +370,22 @@ public class SpeedometerView extends ViewGroup {
         protected void onDraw(Canvas canvas){
             super.onDraw(canvas);
 
+            Log.e("SpeedometerView", "OuterCircleView onDraw()");
 
             //TODO: remove magic numbers!
             float width = getWidth();
-            float height = width/2;
+            float height = getHeight();
             float radius = width/2-10;
 
             float centerX = width/2;
             float centerY = height;
 
+            Log.e("OuterCircleView", "onDraw(): "+width+", "+height+", "+radius+", "+centerX+", "+centerY+";");
+
 
             mOuterCirclePaint.setColor(mOuterCircleColor);
             mOval.set(centerX-radius, centerY - radius, centerX+radius, centerY+radius);
-            canvas.drawArc(mOval, 0, 180, false, mOuterCirclePaint);
-
+            canvas.drawArc(mOval, 180, 180, false, mOuterCirclePaint);
         }
     }
 }
