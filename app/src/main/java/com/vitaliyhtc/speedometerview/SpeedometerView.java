@@ -30,7 +30,7 @@ public class SpeedometerView extends ViewGroup {
     private int mMaximumSpeedometerSpeed;
 
     private static final float DEFAULT_ARROW_RADIUS = 128.0f;
-    private static final float DEFAULT_INTERNAL_SECTOR_RADIUS = 64.0f;
+    private static final float DEFAULT_INTERNAL_SECTOR_RADIUS = 72.0f;
     private static final float DEFAULT_EXTERNAL_SECTOR_RADIUS = 96.0f;
     private static final float DEFAULT_EXTERNAL_SECTOR_RADIUS_OVER_INTERNAL = 10.0f;
 
@@ -39,17 +39,26 @@ public class SpeedometerView extends ViewGroup {
     private static final int DEFAULT_BOTTOM_SPEEDOMETER_SPEED = 60;
     private static final int DEFAULT_MAXIMUM_SPEEDOMETER_SPEED = 120;
 
-
     private Paint mOuterCirclePaint;
     private Paint mDigitsPaint;
     private Rect mDigitsBoundRect;
-    private RectF mOval;
-    private OuterCircleView mOuterCircleView;
+    private RectF mOuterCircleOval;
+    private DialSpeedometerView mDialSpeedometerView;
+
+    private Paint mArrowCenterPaint;
+    private Paint mArrowPaint;
+    private Paint mSectorBeforeArrowPaint;
+    private Paint mSectorAfterArrowPaint;
+    private RectF mSectorBeforeOval;
+    private RectF mSectorAfterOval;
+    private ArrowAndSectorsView  mArrowAndSectorsView;
 
     private static final int STROKE_WIDTH_FROM_VIEW_WIDTH_DIVIDER = 72;
     private static final int OUTER_CIRCLE_MARGIN_TO_STROKE_WIDTH_MULTIPLIER = 2;
     private static final int NOTCHING_LENGTH_TO_STROKE_WIDTH_MULTIPLIER = 3;
     private static final int DIGITS_SIZE_FROM_VIEW_WIDTH_DIVIDER = 24;
+    private static final int ARROW_CENTER_RADIUS_FROM_VIEW_WIDTH_DIVIDER = 24;
+    private static final int ARROW_WIDTH_FROM_VIEW_WIDTH_DIVIDER = 40;
 
 
 
@@ -118,9 +127,7 @@ public class SpeedometerView extends ViewGroup {
             }
 
             int preMaximumSpeedometerSpeed = a.getInt(R.styleable.SpeedometerView_maximumSpeedometerSpeed, DEFAULT_MAXIMUM_SPEEDOMETER_SPEED);
-
             int revalidatedInterval = getRevalidatedSpeedNotchingInterval(preMaximumSpeedometerSpeed);
-
             if(preMaximumSpeedometerSpeed > DEFAULT_BOTTOM_SPEEDOMETER_SPEED){
                 mMaximumSpeedometerSpeed = ((preMaximumSpeedometerSpeed+revalidatedInterval-1)/revalidatedInterval)*revalidatedInterval;
             }else{
@@ -280,13 +287,18 @@ public class SpeedometerView extends ViewGroup {
 
 
 
-        mOuterCircleView.layout(0, 0, width, width/2);
+        mDialSpeedometerView.layout(0, 0, width, width/2);
+        mArrowAndSectorsView.layout(0, 0, width, width*5/9);
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int width = MeasureSpec.getSize(widthMeasureSpec);
         int height = MeasureSpec.getSize(heightMeasureSpec);
+
+        if(height < width*5/9){
+            height = width*5/9;
+        }
 
         Log.e("SpeedometerView", "W="+width+"; H="+height+";");
 
@@ -301,17 +313,27 @@ public class SpeedometerView extends ViewGroup {
         mOuterCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mDigitsPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mDigitsBoundRect = new Rect();
-        mOval = new RectF();
-        mOuterCircleView = new OuterCircleView(getContext());
-        addView(mOuterCircleView);
+        mOuterCircleOval = new RectF();
+        mDialSpeedometerView = new DialSpeedometerView(getContext());
+        addView(mDialSpeedometerView);
 
+
+
+        mArrowCenterPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mSectorBeforeArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mSectorAfterArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mSectorBeforeOval = new RectF();
+        mSectorAfterOval = new RectF();
+        mArrowAndSectorsView = new ArrowAndSectorsView(getContext());
+        addView(mArrowAndSectorsView);
 
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        //canvas.drawARGB(0xff, 0xf0, 0xf0, 0xf0);
+
         canvas.drawColor(mBackgroundColor);
 
         Log.e("SpeedometerView", "ViewGroup onDraw()");
@@ -382,9 +404,9 @@ public class SpeedometerView extends ViewGroup {
 
 
 
-    private class OuterCircleView extends View {
+    private class DialSpeedometerView extends View {
 
-        public OuterCircleView(Context context) {
+        public DialSpeedometerView(Context context) {
             super(context);
         }
 
@@ -392,24 +414,20 @@ public class SpeedometerView extends ViewGroup {
         protected void onDraw(Canvas canvas){
             super.onDraw(canvas);
 
-            Log.e("SpeedometerView", "OuterCircleView onDraw()");
-
-
+            //Log.e("SpeedometerView", "OuterCircleView onDraw()");
 
             int width = getWidth();
             int height = getHeight();
+
+            int centerX = width/2;
+            int centerY = centerX;
 
             int mStrokeWidth = width / STROKE_WIDTH_FROM_VIEW_WIDTH_DIVIDER;
             int radius = width/2 - OUTER_CIRCLE_MARGIN_TO_STROKE_WIDTH_MULTIPLIER * mStrokeWidth;
 
             int notchingLength = NOTCHING_LENGTH_TO_STROKE_WIDTH_MULTIPLIER * mStrokeWidth;
 
-            int centerX = width/2;
-            int centerY = height;
-
-            Log.e("OuterCircleView", "onDraw(): "+width+", "+height+", "+radius+", "+centerX+", "+centerY+";");
-
-
+            //Log.e("OuterCircleView", "onDraw(): "+width+", "+height+", "+radius+", "+centerX+", "+centerY+";");
 
             // OuterCircle draw
             mOuterCirclePaint.setColor(mOuterCircleColor);
@@ -420,13 +438,11 @@ public class SpeedometerView extends ViewGroup {
             //mDigitsPaint.setStrokeWidth(mStrokeWidth);
             mDigitsPaint.setStyle(Paint.Style.FILL);
 
-            mOval.set(centerX-radius, centerY - radius, centerX+radius, centerY+radius);
-            canvas.drawArc(mOval, 180, 180, false, mOuterCirclePaint);
+            mOuterCircleOval.set(centerX-radius, centerY - radius, centerX+radius, centerY+radius);
+            canvas.drawArc(mOuterCircleOval, 180, 180, false, mOuterCirclePaint);
 
             // Notches and digits draw
-
             int revalidatedSpeedNotchingInterval = getRevalidatedSpeedNotchingInterval(mMaximumSpeedometerSpeed);
-
             int notchingsCount = mMaximumSpeedometerSpeed/revalidatedSpeedNotchingInterval; //you need add 1 for angle calculation
             double anglePart = Math.PI/(notchingsCount+1);
             double alpha;
@@ -467,11 +483,61 @@ public class SpeedometerView extends ViewGroup {
 
 
 
+    private class ArrowAndSectorsView extends View {
+
+        public ArrowAndSectorsView(Context context) {
+            super(context);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+
+            int width = getWidth();
+            int height = getHeight();
+
+            int centerX = width/2;
+            int centerY = centerX;
+
+            int arrowCenterRadius = width / ARROW_CENTER_RADIUS_FROM_VIEW_WIDTH_DIVIDER;
+
+            mArrowCenterPaint.setColor(mArrowColor);
+            mArrowCenterPaint.setStyle(Paint.Style.FILL);
+            mArrowPaint.setColor(mArrowColor);
+            mArrowPaint.setStyle(Paint.Style.STROKE);
+            mArrowPaint.setStrokeWidth(width/ARROW_WIDTH_FROM_VIEW_WIDTH_DIVIDER);
 
 
 
+            double startAngle = 1;
+            mSectorBeforeArrowPaint.setStyle(Paint.Style.STROKE);
+            mSectorAfterArrowPaint.setStyle(Paint.Style.STROKE);
+            mSectorBeforeArrowPaint.setColor(mSectorBeforeArrowColor);
+            mSectorAfterArrowPaint.setColor(mSectorAfterArrowColor);
+            float strokeWidth = mExternalSectorRadius - mInternalSectorRadius;
+            mSectorBeforeArrowPaint.setStrokeWidth(strokeWidth);
+            mSectorAfterArrowPaint.setStrokeWidth(strokeWidth);
 
 
+
+            float radius = mExternalSectorRadius;
+            mSectorBeforeOval.set(centerX-radius+strokeWidth/2, centerY - radius+strokeWidth/2, centerX+radius-strokeWidth/2, centerY+radius-strokeWidth/2);
+            mSectorAfterOval.set(centerX-radius+strokeWidth/2, centerY - radius+strokeWidth/2, centerX+radius-strokeWidth/2, centerY+radius-strokeWidth/2);
+            canvas.drawArc(mSectorBeforeOval, 180, (float)radiansToDegrees(startAngle), false, mSectorBeforeArrowPaint);
+            canvas.drawArc(mSectorAfterOval, 180+(float)radiansToDegrees(startAngle), 180-(float)radiansToDegrees(startAngle), false, mSectorAfterArrowPaint);
+
+
+
+            int startX = (int)((-1)*mArrowRadius*Math.cos(startAngle)) + centerX;
+            int startY = (int)((-1)*mArrowRadius*Math.sin(startAngle)) + centerY;
+            canvas.drawCircle(centerX, centerY, arrowCenterRadius, mArrowCenterPaint);
+            canvas.drawLine(startX, startY, centerX, centerY, mArrowPaint);
+        }
+    }
+
+
+
+    // Numbers bigger than 2000 no have sense, better idea to add x10 x100 x1000 multiplier mark.
     private int getRevalidatedSpeedNotchingInterval(int maximumSpeed){
         int revalidatedSpeedNotchingInterval;
         if (maximumSpeed <= 160) {
@@ -480,12 +546,20 @@ public class SpeedometerView extends ViewGroup {
             revalidatedSpeedNotchingInterval = DEFAULT_SPEED_NOTCHING_INTERVAL * 2;
         } else if (maximumSpeed <= 600) {
             revalidatedSpeedNotchingInterval = DEFAULT_SPEED_NOTCHING_INTERVAL * 4;
-        } else {
+        } else if (maximumSpeed <= 1200) {
             revalidatedSpeedNotchingInterval = DEFAULT_SPEED_NOTCHING_INTERVAL * 10;
+        } else {
+            revalidatedSpeedNotchingInterval = DEFAULT_SPEED_NOTCHING_INTERVAL * 20;
         }
         return revalidatedSpeedNotchingInterval;
     }
 
+    private double radiansToDegrees(double radians){
+        return radians*(180/Math.PI);
+    }
 
+    private double degreesToRadians(double degrees){
+        return degrees*(Math.PI/180);
+    }
 
 }

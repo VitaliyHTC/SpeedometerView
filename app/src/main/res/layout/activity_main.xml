@@ -27,8 +27,14 @@
         android:layout_centerHorizontal="true"
         custom:backgroundColor="#ffffffff"
         custom:digitsColor="#ff37474F"
+        custom:arrowRadius="100dp"
         custom:outerCircleColor="#ffFF5722"
+        custom:internalSectorRadius="16dp"
+        custom:externalSectorRadius="98dp"
+
         custom:maximumSpeedometerSpeed="0"
         />
+
+
 
 </RelativeLayout>
