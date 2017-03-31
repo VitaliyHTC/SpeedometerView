@@ -4,7 +4,9 @@ import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.RectF;
+import android.graphics.Typeface;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.View;
@@ -39,12 +41,15 @@ public class SpeedometerView extends ViewGroup {
 
 
     private Paint mOuterCirclePaint;
+    private Paint mDigitsPaint;
+    private Rect mDigitsBoundRect;
     private RectF mOval;
     private OuterCircleView mOuterCircleView;
 
     private static final int STROKE_WIDTH_FROM_VIEW_WIDTH_DIVIDER = 72;
     private static final int OUTER_CIRCLE_MARGIN_TO_STROKE_WIDTH_MULTIPLIER = 2;
-    private static final int NOTCHING_LENGTH_TO_STROKE_WIDTH_MULTIPLIER = 4;
+    private static final int NOTCHING_LENGTH_TO_STROKE_WIDTH_MULTIPLIER = 3;
+    private static final int DIGITS_SIZE_FROM_VIEW_WIDTH_DIVIDER = 24;
 
 
 
@@ -113,8 +118,11 @@ public class SpeedometerView extends ViewGroup {
             }
 
             int preMaximumSpeedometerSpeed = a.getInt(R.styleable.SpeedometerView_maximumSpeedometerSpeed, DEFAULT_MAXIMUM_SPEEDOMETER_SPEED);
+
+            int revalidatedInterval = getRevalidatedSpeedNotchingInterval(preMaximumSpeedometerSpeed);
+
             if(preMaximumSpeedometerSpeed > DEFAULT_BOTTOM_SPEEDOMETER_SPEED){
-                mMaximumSpeedometerSpeed = ((preMaximumSpeedometerSpeed+DEFAULT_SPEED_NOTCHING_INTERVAL-1)/DEFAULT_SPEED_NOTCHING_INTERVAL)*DEFAULT_SPEED_NOTCHING_INTERVAL;
+                mMaximumSpeedometerSpeed = ((preMaximumSpeedometerSpeed+revalidatedInterval-1)/revalidatedInterval)*revalidatedInterval;
             }else{
                 mMaximumSpeedometerSpeed = DEFAULT_MAXIMUM_SPEEDOMETER_SPEED;
             }
@@ -291,6 +299,8 @@ public class SpeedometerView extends ViewGroup {
 
 
         mOuterCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mDigitsPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mDigitsBoundRect = new Rect();
         mOval = new RectF();
         mOuterCircleView = new OuterCircleView(getContext());
         addView(mOuterCircleView);
@@ -392,7 +402,7 @@ public class SpeedometerView extends ViewGroup {
             int mStrokeWidth = width / STROKE_WIDTH_FROM_VIEW_WIDTH_DIVIDER;
             int radius = width/2 - OUTER_CIRCLE_MARGIN_TO_STROKE_WIDTH_MULTIPLIER * mStrokeWidth;
 
-            int notchingLenght = NOTCHING_LENGTH_TO_STROKE_WIDTH_MULTIPLIER * mStrokeWidth;
+            int notchingLength = NOTCHING_LENGTH_TO_STROKE_WIDTH_MULTIPLIER * mStrokeWidth;
 
             int centerX = width/2;
             int centerY = height;
@@ -404,27 +414,53 @@ public class SpeedometerView extends ViewGroup {
             // OuterCircle draw
             mOuterCirclePaint.setColor(mOuterCircleColor);
             mOuterCirclePaint.setStrokeWidth(mStrokeWidth);
-
             mOuterCirclePaint.setStyle(Paint.Style.STROKE);
+
+            mDigitsPaint.setColor(mDigitsColor);
+            //mDigitsPaint.setStrokeWidth(mStrokeWidth);
+            mDigitsPaint.setStyle(Paint.Style.FILL);
+
             mOval.set(centerX-radius, centerY - radius, centerX+radius, centerY+radius);
             canvas.drawArc(mOval, 180, 180, false, mOuterCirclePaint);
 
-            // Notches draw
-            int notchingsCount = mMaximumSpeedometerSpeed/DEFAULT_SPEED_NOTCHING_INTERVAL; //you need add 1 for angle calculation
+            // Notches and digits draw
+
+            int revalidatedSpeedNotchingInterval = getRevalidatedSpeedNotchingInterval(mMaximumSpeedometerSpeed);
+
+            int notchingsCount = mMaximumSpeedometerSpeed/revalidatedSpeedNotchingInterval; //you need add 1 for angle calculation
             double anglePart = Math.PI/(notchingsCount+1);
             double alpha;
-            int internalNotchingRadius = radius - notchingLenght;
+            int internalNotchingRadius = radius - notchingLength;
+            float digitsTextSize = width * 1f / DIGITS_SIZE_FROM_VIEW_WIDTH_DIVIDER;
+            int internalDigitsRadius = internalNotchingRadius - (int)digitsTextSize;
             int startX;
             int startY;
             int stopX;
             int stopY;
+            int digitX;
+            int digitY;
+            int digits;
+            String digitsString;
+            float digitsWidth;
+            float digitsHeight;
+            mDigitsPaint.setTextSize(digitsTextSize);
+            mDigitsPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
             for (int i = 1; i <= notchingsCount; i++) {
                 alpha = anglePart * i;
                 startX = (int)((-1)*radius*Math.cos(alpha)) + centerX;
                 startY = (int)((-1)*radius*Math.sin(alpha)) + centerY;
                 stopX = (int)((-1)*internalNotchingRadius*Math.cos(alpha)) + centerX;
                 stopY = (int)((-1)*internalNotchingRadius*Math.sin(alpha)) + centerY;
+                digitX = (int)((-1)*internalDigitsRadius*Math.cos(alpha)) + centerX;
+                digitY = (int)((-1)*internalDigitsRadius*Math.sin(alpha)) + centerY;
                 canvas.drawLine(startX, startY, stopX, stopY, mOuterCirclePaint);
+
+                digits = revalidatedSpeedNotchingInterval * i;
+                digitsString = digits +"";
+                mDigitsPaint.getTextBounds(digitsString, 0, digitsString.length(), mDigitsBoundRect);
+                digitsWidth = mDigitsPaint.measureText(digitsString);
+                digitsHeight = mDigitsBoundRect.height();
+                canvas.drawText(digitsString, digitX - (digitsWidth/2f), digitY + (digitsHeight/2f), mDigitsPaint);
             }
         }
     }
@@ -436,7 +472,19 @@ public class SpeedometerView extends ViewGroup {
 
 
 
-
+    private int getRevalidatedSpeedNotchingInterval(int maximumSpeed){
+        int revalidatedSpeedNotchingInterval;
+        if (maximumSpeed <= 160) {
+            revalidatedSpeedNotchingInterval = DEFAULT_SPEED_NOTCHING_INTERVAL;
+        } else if (maximumSpeed <= 300) {
+            revalidatedSpeedNotchingInterval = DEFAULT_SPEED_NOTCHING_INTERVAL * 2;
+        } else if (maximumSpeed <= 600) {
+            revalidatedSpeedNotchingInterval = DEFAULT_SPEED_NOTCHING_INTERVAL * 4;
+        } else {
+            revalidatedSpeedNotchingInterval = DEFAULT_SPEED_NOTCHING_INTERVAL * 10;
+        }
+        return revalidatedSpeedNotchingInterval;
+    }
 
 
 
