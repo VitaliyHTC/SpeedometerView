@@ -31,13 +31,20 @@ public class SpeedometerView extends ViewGroup {
     private static final float DEFAULT_INTERNAL_SECTOR_RADIUS = 64.0f;
     private static final float DEFAULT_EXTERNAL_SECTOR_RADIUS = 96.0f;
     private static final float DEFAULT_EXTERNAL_SECTOR_RADIUS_OVER_INTERNAL = 10.0f;
+
+    private static final int DEFAULT_SPEED_NOTCHING_INTERVAL = 10;
+    // next 2 values must be multiples of DEFAULT_SPEED_NOTCHING_INTERVAL
     private static final int DEFAULT_BOTTOM_SPEEDOMETER_SPEED = 60;
     private static final int DEFAULT_MAXIMUM_SPEEDOMETER_SPEED = 120;
+
 
     private Paint mOuterCirclePaint;
     private RectF mOval;
     private OuterCircleView mOuterCircleView;
 
+    private static final int STROKE_WIDTH_FROM_VIEW_WIDTH_DIVIDER = 72;
+    private static final int OUTER_CIRCLE_MARGIN_TO_STROKE_WIDTH_MULTIPLIER = 2;
+    private static final int NOTCHING_LENGTH_TO_STROKE_WIDTH_MULTIPLIER = 4;
 
 
 
@@ -107,7 +114,7 @@ public class SpeedometerView extends ViewGroup {
 
             int preMaximumSpeedometerSpeed = a.getInt(R.styleable.SpeedometerView_maximumSpeedometerSpeed, DEFAULT_MAXIMUM_SPEEDOMETER_SPEED);
             if(preMaximumSpeedometerSpeed > DEFAULT_BOTTOM_SPEEDOMETER_SPEED){
-                mMaximumSpeedometerSpeed = ((preMaximumSpeedometerSpeed+9)/10)*10;
+                mMaximumSpeedometerSpeed = ((preMaximumSpeedometerSpeed+DEFAULT_SPEED_NOTCHING_INTERVAL-1)/DEFAULT_SPEED_NOTCHING_INTERVAL)*DEFAULT_SPEED_NOTCHING_INTERVAL;
             }else{
                 mMaximumSpeedometerSpeed = DEFAULT_MAXIMUM_SPEEDOMETER_SPEED;
             }
@@ -223,7 +230,12 @@ public class SpeedometerView extends ViewGroup {
     }
 
     public void setMaximumSpeedometerSpeed(int maximumSpeedometerSpeed) {
-        this.mMaximumSpeedometerSpeed = maximumSpeedometerSpeed;
+        if(maximumSpeedometerSpeed > DEFAULT_BOTTOM_SPEEDOMETER_SPEED){
+            //mMaximumSpeedometerSpeed = ((maximumSpeedometerSpeed+9)/10)*10;
+            mMaximumSpeedometerSpeed = ((maximumSpeedometerSpeed+DEFAULT_SPEED_NOTCHING_INTERVAL-1)/DEFAULT_SPEED_NOTCHING_INTERVAL)*DEFAULT_SPEED_NOTCHING_INTERVAL;
+        }else{
+            mMaximumSpeedometerSpeed = DEFAULT_MAXIMUM_SPEEDOMETER_SPEED;
+        }
         invalidate();
     }
 
@@ -246,6 +258,7 @@ public class SpeedometerView extends ViewGroup {
 
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
+        // next 2 lines not correct.
         // Do nothing. Do not call the superclass method--that would start a layout pass
         // on this view's children. SpeedometerView lays out its children in onSizeChanged().
 
@@ -254,13 +267,13 @@ public class SpeedometerView extends ViewGroup {
         //Log.e("onLayout:: ", "l="+l+"; t="+t+"; r="+r+"; b="+b+";");
         //Log.e("onLayout:: ", "rr="+(r-l)+"; rb="+(b-t)+"; width="+getWidth()+"; height="+getHeight()+";");
 
-        mOuterCircleView.layout(0, 0, getWidth(), getHeight());
+        int width = getWidth();
+        int height = getHeight();
+
+
+
+        mOuterCircleView.layout(0, 0, width, width/2);
     }
-
-
-
-
-
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
@@ -275,16 +288,15 @@ public class SpeedometerView extends ViewGroup {
     private void init(){
         setLayerToSW(this);
 
+
+
         mOuterCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-
         mOval = new RectF();
-
         mOuterCircleView = new OuterCircleView(getContext());
         addView(mOuterCircleView);
 
 
     }
-
 
     @Override
     protected void onDraw(Canvas canvas) {
@@ -372,20 +384,60 @@ public class SpeedometerView extends ViewGroup {
 
             Log.e("SpeedometerView", "OuterCircleView onDraw()");
 
-            //TODO: remove magic numbers!
-            float width = getWidth();
-            float height = getHeight();
-            float radius = width/2-10;
 
-            float centerX = width/2;
-            float centerY = height;
+
+            int width = getWidth();
+            int height = getHeight();
+
+            int mStrokeWidth = width / STROKE_WIDTH_FROM_VIEW_WIDTH_DIVIDER;
+            int radius = width/2 - OUTER_CIRCLE_MARGIN_TO_STROKE_WIDTH_MULTIPLIER * mStrokeWidth;
+
+            int notchingLenght = NOTCHING_LENGTH_TO_STROKE_WIDTH_MULTIPLIER * mStrokeWidth;
+
+            int centerX = width/2;
+            int centerY = height;
 
             Log.e("OuterCircleView", "onDraw(): "+width+", "+height+", "+radius+", "+centerX+", "+centerY+";");
 
 
+
+            // OuterCircle draw
             mOuterCirclePaint.setColor(mOuterCircleColor);
+            mOuterCirclePaint.setStrokeWidth(mStrokeWidth);
+
+            mOuterCirclePaint.setStyle(Paint.Style.STROKE);
             mOval.set(centerX-radius, centerY - radius, centerX+radius, centerY+radius);
             canvas.drawArc(mOval, 180, 180, false, mOuterCirclePaint);
+
+            // Notches draw
+            int notchingsCount = mMaximumSpeedometerSpeed/DEFAULT_SPEED_NOTCHING_INTERVAL; //you need add 1 for angle calculation
+            double anglePart = Math.PI/(notchingsCount+1);
+            double alpha;
+            int internalNotchingRadius = radius - notchingLenght;
+            int startX;
+            int startY;
+            int stopX;
+            int stopY;
+            for (int i = 1; i <= notchingsCount; i++) {
+                alpha = anglePart * i;
+                startX = (int)((-1)*radius*Math.cos(alpha)) + centerX;
+                startY = (int)((-1)*radius*Math.sin(alpha)) + centerY;
+                stopX = (int)((-1)*internalNotchingRadius*Math.cos(alpha)) + centerX;
+                stopY = (int)((-1)*internalNotchingRadius*Math.sin(alpha)) + centerY;
+                canvas.drawLine(startX, startY, stopX, stopY, mOuterCirclePaint);
+            }
         }
     }
+
+
+
+
+
+
+
+
+
+
+
+
 }
