@@ -2,6 +2,8 @@ package com.vitaliyhtc.speedometerview;
 
 import android.content.Context;
 import android.content.res.TypedArray;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.graphics.Rect;
@@ -51,7 +53,14 @@ public class SpeedometerView extends ViewGroup {
     private Paint mSectorAfterArrowPaint;
     private RectF mSectorBeforeOval;
     private RectF mSectorAfterOval;
-    private ArrowAndSectorsView  mArrowAndSectorsView;
+    private ArrowAndSectorsView mArrowAndSectorsView;
+
+
+    private Paint mOilCanPaint;
+    private Bitmap mOilCanBitmap;
+    private Rect mOilCanRect;
+    private Paint mLevelPaint;
+    private OilCanAndLevelView mOilCanAndLevelView;
 
     private static final int STROKE_WIDTH_FROM_VIEW_WIDTH_DIVIDER = 72;
     private static final int OUTER_CIRCLE_MARGIN_TO_STROKE_WIDTH_MULTIPLIER = 2;
@@ -59,6 +68,9 @@ public class SpeedometerView extends ViewGroup {
     private static final int DIGITS_SIZE_FROM_VIEW_WIDTH_DIVIDER = 24;
     private static final int ARROW_CENTER_RADIUS_FROM_VIEW_WIDTH_DIVIDER = 24;
     private static final int ARROW_WIDTH_FROM_VIEW_WIDTH_DIVIDER = 40;
+
+    private static final float OIL_AND_LEVEL_VERTICAL_POSITION_TO_VIEW_HEIGHT_MULTIPLIER = (float) 1 / 2;
+    private static final float OIL_AND_LEVEL_WIDTH_FROM_VIEW_WIDTH_MULTIPLIER = (float) 1 / 4;
 
 
 
@@ -288,6 +300,7 @@ public class SpeedometerView extends ViewGroup {
 
 
         mDialSpeedometerView.layout(0, 0, width, width/2);
+        mOilCanAndLevelView.layout(0, 0, width, width/2);
         mArrowAndSectorsView.layout(0, 0, width, width*5/9);
     }
 
@@ -319,6 +332,15 @@ public class SpeedometerView extends ViewGroup {
 
 
 
+        mOilCanPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mOilCanBitmap = BitmapFactory.decodeResource(this.getResources(), R.drawable.ic_oil);
+        mOilCanRect = new Rect();
+        mLevelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        mOilCanAndLevelView = new OilCanAndLevelView(getContext());
+        addView(mOilCanAndLevelView);
+
+
+
         mArrowCenterPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mSectorBeforeArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -338,20 +360,6 @@ public class SpeedometerView extends ViewGroup {
 
         Log.e("SpeedometerView", "ViewGroup onDraw()");
     }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -532,6 +540,50 @@ public class SpeedometerView extends ViewGroup {
             int startY = (int)((-1)*mArrowRadius*Math.sin(startAngle)) + centerY;
             canvas.drawCircle(centerX, centerY, arrowCenterRadius, mArrowCenterPaint);
             canvas.drawLine(startX, startY, centerX, centerY, mArrowPaint);
+        }
+    }
+
+
+
+    private class OilCanAndLevelView extends View {
+
+        public OilCanAndLevelView(Context context) {
+            super(context);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+
+            int width = getWidth();
+            int height = getHeight();
+
+            int centerX = width / 2;
+            int centerY = (int) (OIL_AND_LEVEL_VERTICAL_POSITION_TO_VIEW_HEIGHT_MULTIPLIER * centerX);
+            int oilCanAndLevelViewWidth = (int) (width * OIL_AND_LEVEL_WIDTH_FROM_VIEW_WIDTH_MULTIPLIER);
+            int oilCanAndLevelViewHeight = oilCanAndLevelViewWidth / 2;
+
+            /*
+            Log.e("OilCanAndLevelView", "width: "+width+"; height: "+height+"; centerX: "+centerX+"; centerY:"+centerY+
+                    "; oilW: "+oilCanAndLevelViewWidth+"; oilH: "+oilCanAndLevelViewHeight+";");
+            */
+
+            mOilCanRect.set(
+                    centerX - oilCanAndLevelViewWidth / 2,
+                    centerY - oilCanAndLevelViewHeight / 3,
+                    centerX - oilCanAndLevelViewWidth / 2 + oilCanAndLevelViewHeight * 2 / 3,
+                    centerY + oilCanAndLevelViewHeight / 3);
+
+            canvas.drawBitmap(mOilCanBitmap, null, mOilCanRect, mOilCanPaint);
+
+            mLevelPaint.setColor(0xff000000);
+            mLevelPaint.setStrokeWidth(width / STROKE_WIDTH_FROM_VIEW_WIDTH_DIVIDER);
+            canvas.drawLine(
+                    centerX - oilCanAndLevelViewWidth / 2 + oilCanAndLevelViewHeight * 15 / 24,
+                    centerY,
+                    centerX + oilCanAndLevelViewWidth / 2,
+                    centerY,
+                    mLevelPaint);
         }
     }
 
