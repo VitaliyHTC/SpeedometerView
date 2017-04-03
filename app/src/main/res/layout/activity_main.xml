@@ -13,11 +13,8 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
-        android:text="Hello World!\nSpeedometerView"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:text="Hello World!\nSpeedometerView"/>
+
     <com.vitaliyhtc.speedometerview.SpeedometerView
         android:id="@+id/SpeedometerView"
         android:layout_width="288dp"

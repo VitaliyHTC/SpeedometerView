@@ -17,7 +17,7 @@ import android.view.ViewGroup;
  */
 
 public class SpeedometerView extends ViewGroup {
-
+    // TODO: 03/04/17 constants first, then variables
     private int mBackgroundColor;
     private int mDigitsColor;
     private int mSectorBeforeArrowColor;
@@ -29,6 +29,7 @@ public class SpeedometerView extends ViewGroup {
     private float mExternalSectorRadius;
     private int mMaximumSpeedometerSpeed;
 
+    // TODO: 03/04/17 prefered to use dp instead of pixels
     private static final float DEFAULT_ARROW_RADIUS = 128.0f;
     private static final float DEFAULT_INTERNAL_SECTOR_RADIUS = 72.0f;
     private static final float DEFAULT_EXTERNAL_SECTOR_RADIUS = 96.0f;
@@ -183,11 +184,14 @@ public class SpeedometerView extends ViewGroup {
         return mArrowRadius;
     }
 
+    // TODO: 03/04/17 validate variable and throw exception if bad value
+    // TODO: 03/04/17 use AndroidStudio codeStyle check  Ctrl + Alt + A
     public void setArrowRadius(float arrowRadius) {
-        if(arrowRadius>0){
+        if (arrowRadius > 0) {
+            // TODO: 03/04/17 no need to use this.mArrowRadius, variable name don't conflict with each other
             this.mArrowRadius = arrowRadius;
-        }else{
-            this.mArrowRadius = DEFAULT_ARROW_RADIUS;
+        } else {
+            throw new IllegalArgumentException("Arrow radius must be positive, found " + arrowRadius);
         }
         invalidate();
     }
@@ -228,13 +232,13 @@ public class SpeedometerView extends ViewGroup {
     }
 
     public void setExternalSectorRadius(float externalSectorRadius) {
-        if(externalSectorRadius > mInternalSectorRadius){
+        if (externalSectorRadius > mInternalSectorRadius) {
             mExternalSectorRadius = externalSectorRadius;
-        }else{
-            if(mInternalSectorRadius < DEFAULT_EXTERNAL_SECTOR_RADIUS){
+        } else {
+            if (mInternalSectorRadius < DEFAULT_EXTERNAL_SECTOR_RADIUS) {
                 mExternalSectorRadius = DEFAULT_EXTERNAL_SECTOR_RADIUS;
-            }else{
-                mExternalSectorRadius = mInternalSectorRadius+DEFAULT_EXTERNAL_SECTOR_RADIUS_OVER_INTERNAL;
+            } else {
+                mExternalSectorRadius = mInternalSectorRadius + DEFAULT_EXTERNAL_SECTOR_RADIUS_OVER_INTERNAL;
             }
         }
         invalidate();
@@ -291,11 +295,14 @@ public class SpeedometerView extends ViewGroup {
         mArrowAndSectorsView.layout(0, 0, width, width*5/9);
     }
 
+    // TODO: 03/04/17 handle wrap_content & match_parent
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int width = MeasureSpec.getSize(widthMeasureSpec);
         int height = MeasureSpec.getSize(heightMeasureSpec);
 
+        // TODO: 03/04/17 explain this,
+        // should be height = width / 2
         if(height < width*5/9){
             height = width*5/9;
         }
@@ -340,9 +347,7 @@ public class SpeedometerView extends ViewGroup {
     }
 
 
-
-
-
+    // TODO: 03/04/17 why so many new lines?
 
 
 
@@ -430,6 +435,7 @@ public class SpeedometerView extends ViewGroup {
             //Log.e("OuterCircleView", "onDraw(): "+width+", "+height+", "+radius+", "+centerX+", "+centerY+";");
 
             // OuterCircle draw
+            // TODO: 03/04/17 you use separated class to draw dial, but refer parent class paint, why?
             mOuterCirclePaint.setColor(mOuterCircleColor);
             mOuterCirclePaint.setStrokeWidth(mStrokeWidth);
             mOuterCirclePaint.setStyle(Paint.Style.STROKE);
@@ -461,6 +467,7 @@ public class SpeedometerView extends ViewGroup {
             float digitsHeight;
             mDigitsPaint.setTextSize(digitsTextSize);
             mDigitsPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+            // TODO: 03/04/17 read about Matrix and use them, no need to calculate cos,sin
             for (int i = 1; i <= notchingsCount; i++) {
                 alpha = anglePart * i;
                 startX = (int)((-1)*radius*Math.cos(alpha)) + centerX;
@@ -527,7 +534,7 @@ public class SpeedometerView extends ViewGroup {
             canvas.drawArc(mSectorAfterOval, 180+(float)radiansToDegrees(startAngle), 180-(float)radiansToDegrees(startAngle), false, mSectorAfterArrowPaint);
 
 
-
+            // TODO: 03/04/17 read about Matrix and use them, no need to calculate cos,sin
             int startX = (int)((-1)*mArrowRadius*Math.cos(startAngle)) + centerX;
             int startY = (int)((-1)*mArrowRadius*Math.sin(startAngle)) + centerY;
             canvas.drawCircle(centerX, centerY, arrowCenterRadius, mArrowCenterPaint);
@@ -538,6 +545,7 @@ public class SpeedometerView extends ViewGroup {
 
 
     // Numbers bigger than 2000 no have sense, better idea to add x10 x100 x1000 multiplier mark.
+    // TODO: 03/04/17 you can set maximum speed restriction and no need to calculate these values
     private int getRevalidatedSpeedNotchingInterval(int maximumSpeed){
         int revalidatedSpeedNotchingInterval;
         if (maximumSpeed <= 160) {

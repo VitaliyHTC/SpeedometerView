@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!--todo    add view name as prefix for all attributes, to avoid possible conflicts with other libraries sv_backgroundColor,....-->
     <declare-styleable name="SpeedometerView">
         <attr name="backgroundColor" format="color"/>
         <attr name="digitsColor" format="color"/>
