@@ -10,7 +10,7 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.util.AttributeSet;
-import android.util.Log;
+import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 
@@ -20,47 +20,15 @@ import android.view.ViewGroup;
 
 public class SpeedometerView extends ViewGroup {
 
-    private int mBackgroundColor;
-    private int mDigitsColor;
-    private int mSectorBeforeArrowColor;
-    private int mSectorAfterArrowColor;
-    private float mArrowRadius;
-    private int mOuterCircleColor;
-    private int mArrowColor;
-    private float mInternalSectorRadius;
-    private float mExternalSectorRadius;
-    private int mMaximumSpeedometerSpeed;
-
-    private static final float DEFAULT_ARROW_RADIUS = 128.0f;
-    private static final float DEFAULT_INTERNAL_SECTOR_RADIUS = 72.0f;
-    private static final float DEFAULT_EXTERNAL_SECTOR_RADIUS = 96.0f;
-    private static final float DEFAULT_EXTERNAL_SECTOR_RADIUS_OVER_INTERNAL = 10.0f;
+    private static final float DEFAULT_ARROW_RADIUS = 96.0f;
+    private static final float DEFAULT_INTERNAL_SECTOR_RADIUS = 64.0f;
+    private static final float DEFAULT_EXTERNAL_SECTOR_RADIUS = 48.0f;
 
     private static final int DEFAULT_SPEED_NOTCHING_INTERVAL = 10;
     // next 2 values must be multiples of DEFAULT_SPEED_NOTCHING_INTERVAL
     private static final int DEFAULT_BOTTOM_SPEEDOMETER_SPEED = 60;
     private static final int DEFAULT_MAXIMUM_SPEEDOMETER_SPEED = 120;
-
-    private Paint mOuterCirclePaint;
-    private Paint mDigitsPaint;
-    private Rect mDigitsBoundRect;
-    private RectF mOuterCircleOval;
-    private DialSpeedometerView mDialSpeedometerView;
-
-    private Paint mArrowCenterPaint;
-    private Paint mArrowPaint;
-    private Paint mSectorBeforeArrowPaint;
-    private Paint mSectorAfterArrowPaint;
-    private RectF mSectorBeforeOval;
-    private RectF mSectorAfterOval;
-    private ArrowAndSectorsView mArrowAndSectorsView;
-
-
-    private Paint mOilCanPaint;
-    private Bitmap mOilCanBitmap;
-    private Rect mOilCanRect;
-    private Paint mLevelPaint;
-    private OilCanAndLevelView mOilCanAndLevelView;
+    private static final int DEFAULT_TOP_SPEEDOMETER_SPEED = 2000;
 
     private static final int STROKE_WIDTH_FROM_VIEW_WIDTH_DIVIDER = 72;
     private static final int OUTER_CIRCLE_MARGIN_TO_STROKE_WIDTH_MULTIPLIER = 2;
@@ -73,6 +41,23 @@ public class SpeedometerView extends ViewGroup {
     private static final float OIL_AND_LEVEL_WIDTH_FROM_VIEW_WIDTH_MULTIPLIER = (float) 1 / 4;
 
 
+
+    private int mBackgroundColor;
+    private int mDigitsColor;
+    private int mSectorBeforeArrowColor;
+    private int mSectorAfterArrowColor;
+    private float mArrowRadius;
+    private int mOuterCircleColor;
+    private int mArrowColor;
+    private float mInternalSectorRadius;
+    private float mExternalSectorRadius;
+    private int mMaximumSpeedometerSpeed;
+
+
+
+    private DialSpeedometerView mDialSpeedometerView;
+    private ArrowAndSectorsView mArrowAndSectorsView;
+    private OilCanAndLevelView mOilCanAndLevelView;
 
 
 
@@ -104,46 +89,43 @@ public class SpeedometerView extends ViewGroup {
 
         TypedArray a = context.getTheme().obtainStyledAttributes(attrs, R.styleable.SpeedometerView, 0, 0);
         try{
-            mBackgroundColor = a.getColor(R.styleable.SpeedometerView_backgroundColor, 0xffffffff);
-            mDigitsColor = a.getColor(R.styleable.SpeedometerView_digitsColor, 0xff212121);
-            mSectorBeforeArrowColor = a.getColor(R.styleable.SpeedometerView_sectorBeforeArrowColor, 0xff00897b);
-            mSectorAfterArrowColor = a.getColor(R.styleable.SpeedometerView_sectorAfterArrowColor, 0xff01479b);
+            mBackgroundColor = a.getColor(R.styleable.SpeedometerView_sv_backgroundColor, 0xffffffff);
+            mDigitsColor = a.getColor(R.styleable.SpeedometerView_sv_digitsColor, 0xff212121);
+            mSectorBeforeArrowColor = a.getColor(R.styleable.SpeedometerView_sv_sectorBeforeArrowColor, 0xff00897b);
+            mSectorAfterArrowColor = a.getColor(R.styleable.SpeedometerView_sv_sectorAfterArrowColor, 0xff01479b);
 
-            float preArrowRadius = a.getDimension(R.styleable.SpeedometerView_arrowRadius, DEFAULT_ARROW_RADIUS);
-            if(preArrowRadius > 0){
+            float preArrowRadius = a.getDimension(R.styleable.SpeedometerView_sv_arrowRadius, convertDpToPixels(DEFAULT_ARROW_RADIUS, context));
+            if (preArrowRadius > 0) {
                 mArrowRadius = preArrowRadius;
-            }else{
-                mArrowRadius = DEFAULT_ARROW_RADIUS;
+            } else {
+                throw new IllegalArgumentException("Arrow radius must be positive, found " + preArrowRadius);
             }
 
-            mOuterCircleColor = a.getColor(R.styleable.SpeedometerView_outerCircleColor, 0xff212121);
-            mArrowColor = a.getColor(R.styleable.SpeedometerView_arrowColor, 0xff212121);
+            mOuterCircleColor = a.getColor(R.styleable.SpeedometerView_sv_outerCircleColor, 0xff212121);
+            mArrowColor = a.getColor(R.styleable.SpeedometerView_sv_arrowColor, 0xff212121);
 
-
-            float preInternalSectorRadius = a.getDimension(R.styleable.SpeedometerView_internalSectorRadius, DEFAULT_INTERNAL_SECTOR_RADIUS);
+            float preInternalSectorRadius = a.getDimension(R.styleable.SpeedometerView_sv_internalSectorRadius, convertDpToPixels(DEFAULT_INTERNAL_SECTOR_RADIUS, context));
             if(preInternalSectorRadius > 0){
                 mInternalSectorRadius = preInternalSectorRadius;
             }else{
-                mInternalSectorRadius = DEFAULT_INTERNAL_SECTOR_RADIUS;
+                throw new IllegalArgumentException("Internal sector radius must be positive, found " + preInternalSectorRadius);
             }
 
-            float preExternalSectorRadius = a.getDimension(R.styleable.SpeedometerView_externalSectorRadius, DEFAULT_EXTERNAL_SECTOR_RADIUS);
-            if(preExternalSectorRadius > mInternalSectorRadius){
+            float preExternalSectorRadius = a.getDimension(R.styleable.SpeedometerView_sv_externalSectorRadius, convertDpToPixels(DEFAULT_EXTERNAL_SECTOR_RADIUS, context));
+            if (preExternalSectorRadius > mInternalSectorRadius) {
                 mExternalSectorRadius = preExternalSectorRadius;
-            }else{
-                if(mInternalSectorRadius < DEFAULT_EXTERNAL_SECTOR_RADIUS){
-                    mExternalSectorRadius = DEFAULT_EXTERNAL_SECTOR_RADIUS;
-                }else{
-                    mExternalSectorRadius = mInternalSectorRadius+DEFAULT_EXTERNAL_SECTOR_RADIUS_OVER_INTERNAL;
-                }
+            } else {
+                throw new IllegalArgumentException("External sector radius must be greater than internal sector radius, found " + preExternalSectorRadius);
             }
 
-            int preMaximumSpeedometerSpeed = a.getInt(R.styleable.SpeedometerView_maximumSpeedometerSpeed, DEFAULT_MAXIMUM_SPEEDOMETER_SPEED);
+            int preMaximumSpeedometerSpeed = a.getInt(R.styleable.SpeedometerView_sv_maximumSpeedometerSpeed, DEFAULT_MAXIMUM_SPEEDOMETER_SPEED);
             int revalidatedInterval = getRevalidatedSpeedNotchingInterval(preMaximumSpeedometerSpeed);
-            if(preMaximumSpeedometerSpeed > DEFAULT_BOTTOM_SPEEDOMETER_SPEED){
+            if(preMaximumSpeedometerSpeed > DEFAULT_BOTTOM_SPEEDOMETER_SPEED && preMaximumSpeedometerSpeed < DEFAULT_TOP_SPEEDOMETER_SPEED){
                 mMaximumSpeedometerSpeed = ((preMaximumSpeedometerSpeed+revalidatedInterval-1)/revalidatedInterval)*revalidatedInterval;
             }else{
-                mMaximumSpeedometerSpeed = DEFAULT_MAXIMUM_SPEEDOMETER_SPEED;
+                throw new IllegalArgumentException("Maximum speedometer speed must be greater than "
+                        +DEFAULT_BOTTOM_SPEEDOMETER_SPEED+", and less than "+DEFAULT_TOP_SPEEDOMETER_SPEED+
+                        ", found: "+preMaximumSpeedometerSpeed+";");
             }
         } finally {
             a.recycle();
@@ -154,13 +136,12 @@ public class SpeedometerView extends ViewGroup {
 
 
 
-
     public int getBackgroundColor() {
         return mBackgroundColor;
     }
 
     public void setBackgroundColor(int backgroundColor) {
-        this.mBackgroundColor = backgroundColor;
+        mBackgroundColor = backgroundColor;
         invalidate();
     }
 
@@ -169,7 +150,7 @@ public class SpeedometerView extends ViewGroup {
     }
 
     public void setDigitsColor(int digitsColor) {
-        this.mDigitsColor = digitsColor;
+        mDigitsColor = digitsColor;
         invalidate();
     }
 
@@ -178,7 +159,7 @@ public class SpeedometerView extends ViewGroup {
     }
 
     public void setSectorBeforeArrowColor(int sectorBeforeArrowColor) {
-        this.mSectorBeforeArrowColor = sectorBeforeArrowColor;
+        mSectorBeforeArrowColor = sectorBeforeArrowColor;
         invalidate();
     }
 
@@ -187,7 +168,7 @@ public class SpeedometerView extends ViewGroup {
     }
 
     public void setSectorAfterArrowColor(int sectorAfterArrowColor) {
-        this.mSectorAfterArrowColor = sectorAfterArrowColor;
+        mSectorAfterArrowColor = sectorAfterArrowColor;
         invalidate();
     }
 
@@ -196,10 +177,10 @@ public class SpeedometerView extends ViewGroup {
     }
 
     public void setArrowRadius(float arrowRadius) {
-        if(arrowRadius>0){
-            this.mArrowRadius = arrowRadius;
-        }else{
-            this.mArrowRadius = DEFAULT_ARROW_RADIUS;
+        if (arrowRadius > 0) {
+            mArrowRadius = arrowRadius;
+        } else {
+            throw new IllegalArgumentException("Arrow radius must be positive, found " + arrowRadius);
         }
         invalidate();
     }
@@ -209,7 +190,7 @@ public class SpeedometerView extends ViewGroup {
     }
 
     public void setOuterCircleColor(int outerCircleColor) {
-        this.mOuterCircleColor = outerCircleColor;
+        mOuterCircleColor = outerCircleColor;
         invalidate();
     }
 
@@ -218,7 +199,7 @@ public class SpeedometerView extends ViewGroup {
     }
 
     public void setArrowColor(int arrowColor) {
-        this.mArrowColor = arrowColor;
+        mArrowColor = arrowColor;
         invalidate();
     }
 
@@ -230,7 +211,7 @@ public class SpeedometerView extends ViewGroup {
         if(internalSectorRadius > 0){
             mInternalSectorRadius = internalSectorRadius;
         }else{
-            mInternalSectorRadius = DEFAULT_INTERNAL_SECTOR_RADIUS;
+            throw new IllegalArgumentException("Internal sector radius must be positive, found " + internalSectorRadius);
         }
         invalidate();
     }
@@ -240,14 +221,10 @@ public class SpeedometerView extends ViewGroup {
     }
 
     public void setExternalSectorRadius(float externalSectorRadius) {
-        if(externalSectorRadius > mInternalSectorRadius){
+        if (externalSectorRadius > mInternalSectorRadius) {
             mExternalSectorRadius = externalSectorRadius;
-        }else{
-            if(mInternalSectorRadius < DEFAULT_EXTERNAL_SECTOR_RADIUS){
-                mExternalSectorRadius = DEFAULT_EXTERNAL_SECTOR_RADIUS;
-            }else{
-                mExternalSectorRadius = mInternalSectorRadius+DEFAULT_EXTERNAL_SECTOR_RADIUS_OVER_INTERNAL;
-            }
+        } else {
+            throw new IllegalArgumentException("External sector radius must be greater than internal sector radius, found " + externalSectorRadius);
         }
         invalidate();
     }
@@ -257,63 +234,78 @@ public class SpeedometerView extends ViewGroup {
     }
 
     public void setMaximumSpeedometerSpeed(int maximumSpeedometerSpeed) {
-        if(maximumSpeedometerSpeed > DEFAULT_BOTTOM_SPEEDOMETER_SPEED){
-            //mMaximumSpeedometerSpeed = ((maximumSpeedometerSpeed+9)/10)*10;
-            mMaximumSpeedometerSpeed = ((maximumSpeedometerSpeed+DEFAULT_SPEED_NOTCHING_INTERVAL-1)/DEFAULT_SPEED_NOTCHING_INTERVAL)*DEFAULT_SPEED_NOTCHING_INTERVAL;
+        int revalidatedInterval = getRevalidatedSpeedNotchingInterval(maximumSpeedometerSpeed);
+        if(maximumSpeedometerSpeed > DEFAULT_BOTTOM_SPEEDOMETER_SPEED && maximumSpeedometerSpeed < DEFAULT_TOP_SPEEDOMETER_SPEED){
+            mMaximumSpeedometerSpeed = ((maximumSpeedometerSpeed+revalidatedInterval-1)/revalidatedInterval)*revalidatedInterval;
         }else{
-            mMaximumSpeedometerSpeed = DEFAULT_MAXIMUM_SPEEDOMETER_SPEED;
+            throw new IllegalArgumentException("Maximum speedometer speed must be greater than "
+                    +DEFAULT_BOTTOM_SPEEDOMETER_SPEED+", and less than "+DEFAULT_TOP_SPEEDOMETER_SPEED+
+                    ", found: "+maximumSpeedometerSpeed+";");
         }
         invalidate();
     }
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
-        // next 2 lines not correct.
-        // Do nothing. Do not call the superclass method--that would start a layout pass
-        // on this view's children. SpeedometerView lays out its children in onSizeChanged().
-
         // l, t, r, b - absolute numbers. To get relative - you must subtract t and l coordinate from r and b.
         // 0, 0, r-l, b-t, - same as 0, 0, getWidth(), getHeight()
         //Log.e("onLayout:: ", "l="+l+"; t="+t+"; r="+r+"; b="+b+";");
         //Log.e("onLayout:: ", "rr="+(r-l)+"; rb="+(b-t)+"; width="+getWidth()+"; height="+getHeight()+";");
 
-        int width = getWidth();
-        int height = getHeight();
+        int width = r-l;
+        int height = b-t;
 
+        int viewWidth;
+        int viewHeight;
+        int leftPosition;
+        int topPosition;
 
+        if (height >= width / 2) {
+            viewWidth = width;
+            viewHeight = width / 2;
+            leftPosition = 0;
+            topPosition = 0;
+        } else {
+            viewWidth = height * 2;
+            viewHeight = height;
+            leftPosition = (width - viewWidth) / 2;
+            topPosition = 0;
+        }
 
-        mDialSpeedometerView.layout(0, 0, width, width/2);
-        mOilCanAndLevelView.layout(0, 0, width, width/2);
-        mArrowAndSectorsView.layout(0, 0, width, width*5/9);
+        mDialSpeedometerView.layout(leftPosition, topPosition, leftPosition+viewWidth, topPosition+viewHeight);
+        mOilCanAndLevelView.layout(leftPosition, topPosition, leftPosition+viewWidth, topPosition+viewHeight);
+        mArrowAndSectorsView.layout(leftPosition, topPosition, leftPosition+viewWidth, topPosition+viewHeight);
     }
 
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-        int width = MeasureSpec.getSize(widthMeasureSpec);
-        int height = MeasureSpec.getSize(heightMeasureSpec);
 
-        if(height < width*5/9){
-            height = width*5/9;
+        int desiredWidth = convertDpToPixels(256, getContext());
+        int desiredHeight = convertDpToPixels(128, getContext());
+
+        int widthSize = MeasureSpec.getSize(widthMeasureSpec);
+        int widthMode = MeasureSpec.getMode(widthMeasureSpec);
+        int heightSize = MeasureSpec.getSize(heightMeasureSpec);
+        int heightMode = MeasureSpec.getMode(heightMeasureSpec);
+
+        int width;
+        int height;
+
+        if (widthMode == MeasureSpec.EXACTLY || widthMode == MeasureSpec.AT_MOST) {
+            width = widthSize;
+        } else {
+            width = desiredWidth;
         }
 
-        Log.e("SpeedometerView", "W="+width+"; H="+height+";");
+        if (heightMode == MeasureSpec.EXACTLY || heightMode == MeasureSpec.AT_MOST) {
+            height = heightSize;
+        } else {
+            height = desiredHeight;
+        }
+
+        //Log.e("SpeedometerView", "W="+width+"; H="+height+";");
 
         setMeasuredDimension(width, height);
     }
@@ -321,33 +313,16 @@ public class SpeedometerView extends ViewGroup {
     private void init(){
         setLayerToSW(this);
 
-
-
-        mOuterCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mDigitsPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mDigitsBoundRect = new Rect();
-        mOuterCircleOval = new RectF();
         mDialSpeedometerView = new DialSpeedometerView(getContext());
+        mDialSpeedometerView.init();
         addView(mDialSpeedometerView);
 
-
-
-        mOilCanPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mOilCanBitmap = BitmapFactory.decodeResource(this.getResources(), R.drawable.ic_oil);
-        mOilCanRect = new Rect();
-        mLevelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         mOilCanAndLevelView = new OilCanAndLevelView(getContext());
+        mOilCanAndLevelView.init();
         addView(mOilCanAndLevelView);
 
-
-
-        mArrowCenterPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mSectorBeforeArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mSectorAfterArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        mSectorBeforeOval = new RectF();
-        mSectorAfterOval = new RectF();
         mArrowAndSectorsView = new ArrowAndSectorsView(getContext());
+        mArrowAndSectorsView.init();
         addView(mArrowAndSectorsView);
 
     }
@@ -357,8 +332,6 @@ public class SpeedometerView extends ViewGroup {
         super.onDraw(canvas);
 
         canvas.drawColor(mBackgroundColor);
-
-        Log.e("SpeedometerView", "ViewGroup onDraw()");
     }
 
 
@@ -373,56 +346,27 @@ public class SpeedometerView extends ViewGroup {
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     private class DialSpeedometerView extends View {
+
+        private Paint mOuterCirclePaint;
+        private Paint mDigitsPaint;
+        private Rect mDigitsBoundRect;
+        private RectF mOuterCircleOval;
 
         public DialSpeedometerView(Context context) {
             super(context);
         }
 
+        public void init(){
+            mOuterCirclePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            mDigitsPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            mDigitsBoundRect = new Rect();
+            mOuterCircleOval = new RectF();
+        }
+
         @Override
         protected void onDraw(Canvas canvas){
             super.onDraw(canvas);
-
-            //Log.e("SpeedometerView", "OuterCircleView onDraw()");
 
             int width = getWidth();
             int height = getHeight();
@@ -457,10 +401,6 @@ public class SpeedometerView extends ViewGroup {
             int internalNotchingRadius = radius - notchingLength;
             float digitsTextSize = width * 1f / DIGITS_SIZE_FROM_VIEW_WIDTH_DIVIDER;
             int internalDigitsRadius = internalNotchingRadius - (int)digitsTextSize;
-            int startX;
-            int startY;
-            int stopX;
-            int stopY;
             int digitX;
             int digitY;
             int digits;
@@ -469,15 +409,17 @@ public class SpeedometerView extends ViewGroup {
             float digitsHeight;
             mDigitsPaint.setTextSize(digitsTextSize);
             mDigitsPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+
+            // 03/04/17 read about Matrix and use them, no need to calculate cos,sin
+            // How Matrix can be used for text placing?
             for (int i = 1; i <= notchingsCount; i++) {
                 alpha = anglePart * i;
-                startX = (int)((-1)*radius*Math.cos(alpha)) + centerX;
-                startY = (int)((-1)*radius*Math.sin(alpha)) + centerY;
-                stopX = (int)((-1)*internalNotchingRadius*Math.cos(alpha)) + centerX;
-                stopY = (int)((-1)*internalNotchingRadius*Math.sin(alpha)) + centerY;
                 digitX = (int)((-1)*internalDigitsRadius*Math.cos(alpha)) + centerX;
                 digitY = (int)((-1)*internalDigitsRadius*Math.sin(alpha)) + centerY;
-                canvas.drawLine(startX, startY, stopX, stopY, mOuterCirclePaint);
+                canvas.save();
+                canvas.rotate((float)radiansToDegrees(alpha), centerX, centerY);
+                canvas.drawLine(centerX - radius, centerY, centerX - radius + notchingLength, centerY, mOuterCirclePaint);
+                canvas.restore();
 
                 digits = revalidatedSpeedNotchingInterval * i;
                 digitsString = digits +"";
@@ -493,8 +435,24 @@ public class SpeedometerView extends ViewGroup {
 
     private class ArrowAndSectorsView extends View {
 
+        private Paint mArrowCenterPaint;
+        private Paint mArrowPaint;
+        private Paint mSectorBeforeArrowPaint;
+        private Paint mSectorAfterArrowPaint;
+        private RectF mSectorBeforeOval;
+        private RectF mSectorAfterOval;
+
         public ArrowAndSectorsView(Context context) {
             super(context);
+        }
+
+        public void init(){
+            mArrowCenterPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            mArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            mSectorBeforeArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            mSectorAfterArrowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            mSectorBeforeOval = new RectF();
+            mSectorAfterOval = new RectF();
         }
 
         @Override
@@ -515,8 +473,6 @@ public class SpeedometerView extends ViewGroup {
             mArrowPaint.setStyle(Paint.Style.STROKE);
             mArrowPaint.setStrokeWidth(width/ARROW_WIDTH_FROM_VIEW_WIDTH_DIVIDER);
 
-
-
             double startAngle = 1;
             mSectorBeforeArrowPaint.setStyle(Paint.Style.STROKE);
             mSectorAfterArrowPaint.setStyle(Paint.Style.STROKE);
@@ -526,20 +482,17 @@ public class SpeedometerView extends ViewGroup {
             mSectorBeforeArrowPaint.setStrokeWidth(strokeWidth);
             mSectorAfterArrowPaint.setStrokeWidth(strokeWidth);
 
-
-
             float radius = mExternalSectorRadius;
             mSectorBeforeOval.set(centerX-radius+strokeWidth/2, centerY - radius+strokeWidth/2, centerX+radius-strokeWidth/2, centerY+radius-strokeWidth/2);
             mSectorAfterOval.set(centerX-radius+strokeWidth/2, centerY - radius+strokeWidth/2, centerX+radius-strokeWidth/2, centerY+radius-strokeWidth/2);
             canvas.drawArc(mSectorBeforeOval, 180, (float)radiansToDegrees(startAngle), false, mSectorBeforeArrowPaint);
             canvas.drawArc(mSectorAfterOval, 180+(float)radiansToDegrees(startAngle), 180-(float)radiansToDegrees(startAngle), false, mSectorAfterArrowPaint);
 
-
-
-            int startX = (int)((-1)*mArrowRadius*Math.cos(startAngle)) + centerX;
-            int startY = (int)((-1)*mArrowRadius*Math.sin(startAngle)) + centerY;
             canvas.drawCircle(centerX, centerY, arrowCenterRadius, mArrowCenterPaint);
-            canvas.drawLine(startX, startY, centerX, centerY, mArrowPaint);
+            canvas.save();
+            canvas.rotate((float)radiansToDegrees(startAngle), centerX, centerY);
+            canvas.drawLine(centerX-mArrowRadius, centerY, centerX, centerY, mArrowPaint);
+            canvas.restore();
         }
     }
 
@@ -547,8 +500,20 @@ public class SpeedometerView extends ViewGroup {
 
     private class OilCanAndLevelView extends View {
 
+        private Paint mOilCanPaint;
+        private Bitmap mOilCanBitmap;
+        private Rect mOilCanRect;
+        private Paint mLevelPaint;
+
         public OilCanAndLevelView(Context context) {
             super(context);
+        }
+
+        public void init(){
+            mOilCanPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            mOilCanBitmap = BitmapFactory.decodeResource(this.getResources(), R.drawable.ic_oil);
+            mOilCanRect = new Rect();
+            mLevelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         }
 
         @Override
@@ -590,6 +555,8 @@ public class SpeedometerView extends ViewGroup {
 
 
     // Numbers bigger than 2000 no have sense, better idea to add x10 x100 x1000 multiplier mark.
+    // 03/04/17 you can set maximum speed restriction and no need to calculate these values.
+    // Added 2000 top limit. Can be easy changed later.
     private int getRevalidatedSpeedNotchingInterval(int maximumSpeed){
         int revalidatedSpeedNotchingInterval;
         if (maximumSpeed <= 160) {
@@ -614,4 +581,7 @@ public class SpeedometerView extends ViewGroup {
         return degrees*(Math.PI/180);
     }
 
+    private int convertDpToPixels(float dp, Context context) {
+        return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, dp, context.getResources().getDisplayMetrics());
+    }
 }

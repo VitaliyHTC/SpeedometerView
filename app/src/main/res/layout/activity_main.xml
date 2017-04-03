@@ -13,26 +13,21 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
-        android:text="Hello World!\nSpeedometerView"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:text="Hello World!\nSpeedometerView"/>
+
     <com.vitaliyhtc.speedometerview.SpeedometerView
         android:id="@+id/SpeedometerView"
-        android:layout_width="288dp"
-        android:layout_height="160dp"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:layout_below="@+id/textView"
         android:layout_marginTop="16dp"
         android:layout_centerHorizontal="true"
-        custom:backgroundColor="#ffffffff"
-        custom:digitsColor="#ff37474F"
-        custom:arrowRadius="100dp"
-        custom:outerCircleColor="#ff424242"
-        custom:internalSectorRadius="16dp"
-        custom:externalSectorRadius="48dp"
-
-        custom:maximumSpeedometerSpeed="0"
+        custom:sv_backgroundColor="#ffffffff"
+        custom:sv_digitsColor="#ff37474F"
+        custom:sv_arrowRadius="100dp"
+        custom:sv_outerCircleColor="#ff424242"
+        custom:sv_internalSectorRadius="24dp"
+        custom:sv_externalSectorRadius="48dp"
         />
 
 
