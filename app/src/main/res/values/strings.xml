@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">SpeedometerView</string>
+    <string name="btn_brake">Brake</string>
+    <string name="btn_trottle">Trottle</string>
 </resources>

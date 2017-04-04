@@ -17,8 +17,8 @@
 
     <com.vitaliyhtc.speedometerview.SpeedometerView
         android:id="@+id/SpeedometerView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_width="300dp"
+        android:layout_height="160dp"
         android:layout_below="@+id/textView"
         android:layout_marginTop="16dp"
         android:layout_centerHorizontal="true"
@@ -30,6 +30,25 @@
         custom:sv_externalSectorRadius="48dp"
         />
 
-
+    <Button
+        android:id="@+id/btn_brake"
+        android:layout_width="64dp"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/SpeedometerView"
+        android:layout_toLeftOf="@+id/btn_trottle"
+        android:layout_toStartOf="@+id/btn_trottle"
+        android:text="@string/btn_brake"
+        android:textAllCaps="false"
+        />
+    <Button
+        android:id="@+id/btn_trottle"
+        android:layout_width="76dp"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/SpeedometerView"
+        android:layout_alignParentEnd="true"
+        android:layout_alignParentRight="true"
+        android:text="@string/btn_trottle"
+        android:textAllCaps="false"
+        />
 
 </RelativeLayout>
