@@ -5,15 +5,19 @@ import android.os.Bundle;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity {
 
     private SpeedometerView mSpeedometerView;
+    private TextView mSpeedTextView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        mSpeedTextView = (TextView) findViewById(R.id.tv_speed);
 
         mSpeedometerView = (SpeedometerView) findViewById(R.id.SpeedometerView);
         mSpeedometerView.setArrowAccelerationSpeed(1.0f);
@@ -21,6 +25,7 @@ public class MainActivity extends AppCompatActivity {
         mSpeedometerView.setEnergyLevelChangeSpeed(0.3f);
         mSpeedometerView.setEnergyLevel(100.0f);
         setOnClickListeners();
+        setOnSpeedChangeListener();
     }
 
     @Override
@@ -71,10 +76,17 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-
     }
 
-
+    private void setOnSpeedChangeListener(){
+        mSpeedometerView.setOnSpeedChangeListener(new SpeedometerView.SpeedChangeListener() {
+            @Override
+            public void onSpeedChanged(int value) {
+                String speedText = ""+value;
+                mSpeedTextView.setText(speedText);
+            }
+        });
+    }
 
 
 

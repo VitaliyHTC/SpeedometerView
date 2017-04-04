@@ -51,4 +51,14 @@
         android:textAllCaps="false"
         />
 
+    <TextView
+        android:id="@+id/tv_speed"
+        android:layout_width="128dp"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:layout_below="@+id/SpeedometerView"
+        android:layout_toStartOf="@+id/btn_brake"
+        android:layout_toLeftOf="@+id/btn_brake"
+        />
+
 </RelativeLayout>

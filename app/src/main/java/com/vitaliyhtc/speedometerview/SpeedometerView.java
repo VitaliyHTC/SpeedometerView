@@ -19,6 +19,9 @@ import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Created by VitaliyHTC on 30.03.17.
  */
@@ -76,9 +79,9 @@ public class SpeedometerView extends ViewGroup {
     private volatile boolean isBrakePedalPressed;
     private volatile boolean isSwitchedOn;
 
-    private int mNotchingsCount;
+    private int mNotchesCount;
 
-
+    private List<SpeedChangeListener> mSpeedChangeListenerList;
 
     /**
      * Class constructor taking only context. Use this constructor to create
@@ -332,8 +335,10 @@ public class SpeedometerView extends ViewGroup {
     private void init(){
         setLayerToSW(this);
 
+        mSpeedChangeListenerList = new ArrayList<>();
+
         mSpeed = 0;
-        mNotchingsCount = mMaximumSpeedometerSpeed/getRevalidatedSpeedNotchingInterval(mMaximumSpeedometerSpeed);
+        mNotchesCount = mMaximumSpeedometerSpeed/getRevalidatedSpeedNotchingInterval(mMaximumSpeedometerSpeed);
 
         mDialSpeedometerView = new DialSpeedometerView(getContext());
         mDialSpeedometerView.init();
@@ -538,7 +543,7 @@ public class SpeedometerView extends ViewGroup {
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
 
-            mStartAngle = Math.PI * (mSpeed / mMaximumSpeedometerSpeed) * ((float)mNotchingsCount/((float)mNotchingsCount+1));
+            mStartAngle = Math.PI * (mSpeed / mMaximumSpeedometerSpeed) * ((float) mNotchesCount /((float) mNotchesCount +1));
 
             canvas.drawArc(mSectorBeforeOval, 180, (float)radiansToDegrees(mStartAngle), false, mSectorBeforeArrowPaint);
             canvas.drawArc(mSectorAfterOval, 180+(float)radiansToDegrees(mStartAngle), 180-(float)radiansToDegrees(mStartAngle), false, mSectorAfterArrowPaint);
@@ -671,7 +676,6 @@ public class SpeedometerView extends ViewGroup {
      * Animator *
      ********************************************************************************************/
 
-
     private Runnable animator = new Runnable() {
         @Override
         public void run() {
@@ -684,6 +688,17 @@ public class SpeedometerView extends ViewGroup {
             }
             if (!isBrakePedalPressed && !isTrottlePedalPressed && mSpeed > 0) {
                 mSpeed-=mArrowAttenuationSpeed;
+            }
+            if(mSpeed > mMaximumSpeedometerSpeed){
+                mSpeed = mMaximumSpeedometerSpeed;
+            }
+            if(mSpeed<0){
+                mSpeed = 0;
+            }
+
+            for (SpeedChangeListener speedChangeListener :
+                    mSpeedChangeListenerList) {
+                speedChangeListener.onSpeedChanged((int)mSpeed);
             }
 
             if(isSwitchedOn){
@@ -744,10 +759,11 @@ public class SpeedometerView extends ViewGroup {
         isSwitchedOn = false;
     }
 
+    public void setOnSpeedChangeListener(SpeedChangeListener speedChangeListener){
+        mSpeedChangeListenerList.add(speedChangeListener);
+    }
 
-
-
-    public interface SpeedChange{
+    public interface SpeedChangeListener {
         void onSpeedChanged(int value);
     }
 }
