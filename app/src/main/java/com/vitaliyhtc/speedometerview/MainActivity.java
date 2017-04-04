@@ -16,7 +16,23 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         mSpeedometerView = (SpeedometerView) findViewById(R.id.SpeedometerView);
+        mSpeedometerView.setArrowAccelerationSpeed(1.0f);
+        mSpeedometerView.setArrowAttenuationSpeed(0.1f);
+        mSpeedometerView.setEnergyLevelChangeSpeed(0.3f);
+        mSpeedometerView.setEnergyLevel(100.0f);
         setOnClickListeners();
+    }
+
+    @Override
+    protected void onStart() {
+        super.onStart();
+        mSpeedometerView.switchOn();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        mSpeedometerView.switchOff();
     }
 
     private void setOnClickListeners(){

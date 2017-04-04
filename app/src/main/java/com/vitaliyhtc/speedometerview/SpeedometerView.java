@@ -68,9 +68,15 @@ public class SpeedometerView extends ViewGroup {
 
     private float mSpeed;
     private float mEnergyLevel;
+    private float mArrowAccelerationSpeed;
+    private float mArrowAttenuationSpeed;
+    private float mEnergyLevelChangeSpeed;
 
-    private boolean isTrottlePedalPressed;
-    private boolean isBrakePedalPressed;
+    private volatile boolean isTrottlePedalPressed;
+    private volatile boolean isBrakePedalPressed;
+    private volatile boolean isSwitchedOn;
+
+    private int mNotchingsCount;
 
 
 
@@ -326,6 +332,9 @@ public class SpeedometerView extends ViewGroup {
     private void init(){
         setLayerToSW(this);
 
+        mSpeed = 0;
+        mNotchingsCount = mMaximumSpeedometerSpeed/getRevalidatedSpeedNotchingInterval(mMaximumSpeedometerSpeed);
+
         mDialSpeedometerView = new DialSpeedometerView(getContext());
         mDialSpeedometerView.init();
         addView(mDialSpeedometerView);
@@ -474,6 +483,13 @@ public class SpeedometerView extends ViewGroup {
         private RectF mSectorBeforeOval;
         private RectF mSectorAfterOval;
 
+        private int mWidth;
+        private int mHeight;
+        private int mCenterX;
+        private int mCenterY;
+
+        private double mStartAngle;
+
         public ArrowAndSectorsView(Context context) {
             super(context);
         }
@@ -503,34 +519,41 @@ public class SpeedometerView extends ViewGroup {
         }
 
         @Override
-        protected void onDraw(Canvas canvas) {
-            super.onDraw(canvas);
+        protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
 
-            int width = getWidth();
-            int centerX = width/2;
-            int centerY = width/2;
-
-            double startAngle = 1;
+            mWidth = right - left;
+            mHeight = bottom - top;
+            mCenterX = mWidth/2;
+            mCenterY = mWidth/2;
 
             float strokeWidth = mExternalSectorRadius - mInternalSectorRadius;
             float radius = mExternalSectorRadius;
-            mSectorBeforeOval.set(centerX-radius+strokeWidth/2, centerY - radius+strokeWidth/2, centerX+radius-strokeWidth/2, centerY+radius-strokeWidth/2);
-            mSectorAfterOval.set(centerX-radius+strokeWidth/2, centerY - radius+strokeWidth/2, centerX+radius-strokeWidth/2, centerY+radius-strokeWidth/2);
+            mSectorBeforeOval.set(mCenterX-radius+strokeWidth/2, mCenterY - radius+strokeWidth/2, mCenterX+radius-strokeWidth/2, mCenterY+radius-strokeWidth/2);
+            mSectorAfterOval.set(mCenterX-radius+strokeWidth/2, mCenterY - radius+strokeWidth/2, mCenterX+radius-strokeWidth/2, mCenterY+radius-strokeWidth/2);
+
+            super.onLayout(changed, left, top, right, bottom);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+
+            mStartAngle = Math.PI * (mSpeed / mMaximumSpeedometerSpeed) * ((float)mNotchingsCount/((float)mNotchingsCount+1));
+
+            canvas.drawArc(mSectorBeforeOval, 180, (float)radiansToDegrees(mStartAngle), false, mSectorBeforeArrowPaint);
+            canvas.drawArc(mSectorAfterOval, 180+(float)radiansToDegrees(mStartAngle), 180-(float)radiansToDegrees(mStartAngle), false, mSectorAfterArrowPaint);
+            canvas.drawCircle(mCenterX, mCenterY, mWidth / ARROW_CENTER_RADIUS_FROM_VIEW_WIDTH_DIVIDER, mArrowCenterPaint);
 
             mArrowPath.reset();
             mArrowPath.addRect(
-                    centerX-mArrowRadius,
-                    centerY-width/(ARROW_WIDTH_FROM_VIEW_WIDTH_DIVIDER*2),
-                    centerX,
-                    centerY+width/(ARROW_WIDTH_FROM_VIEW_WIDTH_DIVIDER*2),
+                    mCenterX-mArrowRadius,
+                    mCenterY-mWidth/(ARROW_WIDTH_FROM_VIEW_WIDTH_DIVIDER*2),
+                    mCenterX,
+                    mCenterY+mWidth/(ARROW_WIDTH_FROM_VIEW_WIDTH_DIVIDER*2),
                     Path.Direction.CW);
 
-            canvas.drawArc(mSectorBeforeOval, 180, (float)radiansToDegrees(startAngle), false, mSectorBeforeArrowPaint);
-            canvas.drawArc(mSectorAfterOval, 180+(float)radiansToDegrees(startAngle), 180-(float)radiansToDegrees(startAngle), false, mSectorAfterArrowPaint);
-            canvas.drawCircle(centerX, centerY, width / ARROW_CENTER_RADIUS_FROM_VIEW_WIDTH_DIVIDER, mArrowCenterPaint);
-
             mArrowMatrix.reset();
-            mArrowMatrix.setRotate((float)radiansToDegrees(startAngle), centerX, centerY);
+            mArrowMatrix.setRotate((float)radiansToDegrees(mStartAngle), mCenterX, mCenterY);
             mArrowPath.transform(mArrowMatrix);
             canvas.drawPath(mArrowPath, mArrowPaint);
         }
@@ -645,15 +668,55 @@ public class SpeedometerView extends ViewGroup {
 
 
     /*********************************************************************************************
+     * Animator *
+     ********************************************************************************************/
+
+
+    private Runnable animator = new Runnable() {
+        @Override
+        public void run() {
+            //do calculations
+            if (isTrottlePedalPressed && mSpeed < mMaximumSpeedometerSpeed) {
+                mSpeed+=mArrowAccelerationSpeed;
+            }
+            if (isBrakePedalPressed && mSpeed > 0) {
+                mSpeed-=2*mArrowAccelerationSpeed;
+            }
+            if (!isBrakePedalPressed && !isTrottlePedalPressed && mSpeed > 0) {
+                mSpeed-=mArrowAttenuationSpeed;
+            }
+
+            if(isSwitchedOn){
+                postDelayed(this, 30);
+            }
+            mArrowAndSectorsView.invalidate();
+        }
+    };
+
+
+
+    /*********************************************************************************************
      * other public methods *
      ********************************************************************************************/
 
     public void setArrowAccelerationSpeed(float accelerationSpeed){
-
+        mArrowAccelerationSpeed = accelerationSpeed;
     }
 
     public void setArrowAttenuationSpeed(float attenuationSpeed){
+        mArrowAttenuationSpeed = attenuationSpeed;
+    }
 
+    public void setEnergyLevel(float energyLevel){
+        mEnergyLevel = energyLevel;
+    }
+
+    public float getEnergyLevel(){
+        return mEnergyLevel;
+    }
+
+    public void setEnergyLevelChangeSpeed(float energyLevelChangeSpeedPerSecond){
+        mEnergyLevelChangeSpeed = energyLevelChangeSpeedPerSecond;
     }
 
     public void pressTrottlePedal(){
@@ -672,12 +735,13 @@ public class SpeedometerView extends ViewGroup {
         isBrakePedalPressed= false;
     }
 
-    public void setEnergyLevel(float energyLevel){
-
+    public void switchOn(){
+        isSwitchedOn = true;
+        post(animator);
     }
 
-    public void setEnergyLevelChangeSpeed(float energyLevelChangeSpeedPerSecond){
-
+    public void switchOff(){
+        isSwitchedOn = false;
     }
 
 
