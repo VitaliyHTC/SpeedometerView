@@ -15,17 +15,12 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
 
 import java.util.ArrayList;
 import java.util.List;
-
-/**
- * Created by VitaliyHTC on 30.03.17.
- */
 
 public class SpeedometerView extends ViewGroup {
 
@@ -99,7 +94,7 @@ public class SpeedometerView extends ViewGroup {
      * Class constructor taking only context. Use this constructor to create
      * {@link SpeedometerView} objects from your own code.
      *
-     * @param context
+     * @param context Context
      */
     public SpeedometerView(Context context) {
         super(context);
@@ -113,7 +108,7 @@ public class SpeedometerView extends ViewGroup {
      * is used by the layout engine to construct a {@link SpeedometerView} from a set of
      * XML attributes.
      *
-     * @param context
+     * @param context Context
      * @param attrs   An attribute set which can contain attributes from
      *                {@link com.vitaliyhtc.speedometerview.R.styleable} as well as attributes inherited
      *                from {@link android.view.View}.
@@ -354,8 +349,6 @@ public class SpeedometerView extends ViewGroup {
             height = desiredHeight;
         }
 
-        //Log.e("SpeedometerView", "W="+width+"; H="+height+";");
-
         setMeasuredDimension(width, height);
     }
 
@@ -363,8 +356,6 @@ public class SpeedometerView extends ViewGroup {
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         // l, t, r, b - absolute numbers. To get relative - you must subtract t and l coordinate from r and b.
         // 0, 0, r-l, b-t, - same as 0, 0, getWidth(), getHeight()
-        //Log.e("onLayout:: ", "l="+l+"; t="+t+"; r="+r+"; b="+b+";");
-        //Log.e("onLayout:: ", "rr="+(r-l)+"; rb="+(b-t)+"; width="+getWidth()+"; height="+getHeight()+";");
 
         int width = r-l;
         int height = b-t;
@@ -396,8 +387,6 @@ public class SpeedometerView extends ViewGroup {
         super.onDraw(canvas);
 
         canvas.drawColor(mBackgroundColor);
-
-        Log.e("SpeedometerView", "onDraw()");
     }
 
 
@@ -475,8 +464,6 @@ public class SpeedometerView extends ViewGroup {
         @Override
         protected void onDraw(Canvas canvas){
             super.onDraw(canvas);
-
-            Log.e("DialSpeedometerView", "onDraw()");
 
             mOuterCirclePaint.setColor(mOuterCircleColor);
             mNotchesPaint.setColor(mOuterCircleColor);
@@ -587,8 +574,6 @@ public class SpeedometerView extends ViewGroup {
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
 
-            Log.e("ArrowAndSectorsView", "onDraw()");
-
             mArrowCenterPaint.setColor(mArrowColor);
             mArrowPaint.setColor(mArrowColor);
             mSectorBeforeArrowPaint.setColor(mSectorBeforeArrowColor);
@@ -626,14 +611,7 @@ public class SpeedometerView extends ViewGroup {
         private Rect mOilCanRect;
         private Paint mLevelPaint;
 
-        /*
         // RGBATxRGBA
-        float[] cmData = new float[]{
-                1, 0, 0, 0, 0,
-                0, 1, 0, 0, 0,
-                0, 0, 1, 0, 0,
-                0, 0, 0, 1, 0 };
-        */
         float[] cmDataGreen = new float[]{
                 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 255,
@@ -698,8 +676,6 @@ public class SpeedometerView extends ViewGroup {
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-
-            Log.e("OilCanAndLevelView", "onDraw()");
 
             if (mEnergyLevel > ENERGY_LEVEL_CAN_EMPTY) {
                 mOilCanPaint.setColorFilter(mColorGreenFilter);
@@ -804,7 +780,7 @@ public class SpeedometerView extends ViewGroup {
     private Runnable animator = new Runnable() {
         @Override
         public void run() {
-            //do calculations
+
             if (isTrottlePedalPressed && mSpeed < mMaximumSpeedometerSpeed) {
                 mSpeed+=mArrowAccelerationSpeed;
                 mEnergyLevel-=mEnergyLevelChangeSpeed;
