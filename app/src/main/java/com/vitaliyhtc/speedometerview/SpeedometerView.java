@@ -15,6 +15,7 @@ import android.graphics.Rect;
 import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,9 +29,16 @@ import java.util.List;
 
 public class SpeedometerView extends ViewGroup {
 
+    private static final int DEFAULT_BACKGROUND_COLOR = 0xffffffff;
+    private static final int DEFAULT_DIGITS_COLOR = 0xff212121;
+    private static final int DEFAULT_SECTOR_BEFORE_ARROW_COLOR = 0xff00897b;
+    private static final int DEFAULT_SECTOR_AFTER_ARROW_COLOR = 0xff01479b;
+    private static final int DEFAULT_OUTER_CIRCLE_COLOR = 0xff212121;
+    private static final int DEFAULT_ARROW_COLOR = 0xff212121;
+
     private static final float DEFAULT_ARROW_RADIUS = 96.0f;
-    private static final float DEFAULT_INTERNAL_SECTOR_RADIUS = 64.0f;
-    private static final float DEFAULT_EXTERNAL_SECTOR_RADIUS = 48.0f;
+    private static final float DEFAULT_INTERNAL_SECTOR_RADIUS = 48.0f;
+    private static final float DEFAULT_EXTERNAL_SECTOR_RADIUS = 64.0f;
 
     private static final int DEFAULT_SPEED_NOTCHING_INTERVAL = 10;
     // next 2 values must be multiples of DEFAULT_SPEED_NOTCHING_INTERVAL
@@ -47,6 +55,10 @@ public class SpeedometerView extends ViewGroup {
 
     private static final float OIL_AND_LEVEL_VERTICAL_POSITION_TO_VIEW_HEIGHT_MULTIPLIER = (float) 1 / 2;
     private static final float OIL_AND_LEVEL_WIDTH_FROM_VIEW_WIDTH_MULTIPLIER = (float) 1 / 4;
+
+    private static final float ENERGY_LEVEL_CAN_EMPTY = 9.0f;
+    private static final float ENERGY_LEVEL_BLINK = 30.0f;
+    private static final float ENERGY_LEVEL_BLINK_ALPHA_STEP = 0.05f;
 
 
 
@@ -92,6 +104,7 @@ public class SpeedometerView extends ViewGroup {
     public SpeedometerView(Context context) {
         super(context);
         setWillNotDraw(false);
+        setDefaults();
         init();
     }
 
@@ -111,10 +124,10 @@ public class SpeedometerView extends ViewGroup {
 
         TypedArray a = context.getTheme().obtainStyledAttributes(attrs, R.styleable.SpeedometerView, 0, 0);
         try{
-            mBackgroundColor = a.getColor(R.styleable.SpeedometerView_sv_backgroundColor, 0xffffffff);
-            mDigitsColor = a.getColor(R.styleable.SpeedometerView_sv_digitsColor, 0xff212121);
-            mSectorBeforeArrowColor = a.getColor(R.styleable.SpeedometerView_sv_sectorBeforeArrowColor, 0xff00897b);
-            mSectorAfterArrowColor = a.getColor(R.styleable.SpeedometerView_sv_sectorAfterArrowColor, 0xff01479b);
+            mBackgroundColor = a.getColor(R.styleable.SpeedometerView_sv_backgroundColor, DEFAULT_BACKGROUND_COLOR);
+            mDigitsColor = a.getColor(R.styleable.SpeedometerView_sv_digitsColor, DEFAULT_DIGITS_COLOR);
+            mSectorBeforeArrowColor = a.getColor(R.styleable.SpeedometerView_sv_sectorBeforeArrowColor, DEFAULT_SECTOR_BEFORE_ARROW_COLOR);
+            mSectorAfterArrowColor = a.getColor(R.styleable.SpeedometerView_sv_sectorAfterArrowColor, DEFAULT_SECTOR_AFTER_ARROW_COLOR);
 
             float preArrowRadius = a.getDimension(R.styleable.SpeedometerView_sv_arrowRadius, convertDpToPixels(DEFAULT_ARROW_RADIUS, context));
             if (preArrowRadius > 0) {
@@ -123,8 +136,8 @@ public class SpeedometerView extends ViewGroup {
                 throw new IllegalArgumentException("Arrow radius must be positive, found " + preArrowRadius);
             }
 
-            mOuterCircleColor = a.getColor(R.styleable.SpeedometerView_sv_outerCircleColor, 0xff212121);
-            mArrowColor = a.getColor(R.styleable.SpeedometerView_sv_arrowColor, 0xff212121);
+            mOuterCircleColor = a.getColor(R.styleable.SpeedometerView_sv_outerCircleColor, DEFAULT_OUTER_CIRCLE_COLOR);
+            mArrowColor = a.getColor(R.styleable.SpeedometerView_sv_arrowColor, DEFAULT_ARROW_COLOR);
 
             float preInternalSectorRadius = a.getDimension(R.styleable.SpeedometerView_sv_internalSectorRadius, convertDpToPixels(DEFAULT_INTERNAL_SECTOR_RADIUS, context));
             if(preInternalSectorRadius > 0){
@@ -157,6 +170,10 @@ public class SpeedometerView extends ViewGroup {
     }
 
 
+
+    /*********************************************************************************************
+     * getters and setters *
+     ********************************************************************************************/
 
     public int getBackgroundColor() {
         return mBackgroundColor;
@@ -269,6 +286,79 @@ public class SpeedometerView extends ViewGroup {
 
 
 
+    /*********************************************************************************************
+     * init(), onMeasure(), onLayout(), onDraw(), ... *
+     ********************************************************************************************/
+
+    private void setDefaults(){
+        mBackgroundColor = DEFAULT_BACKGROUND_COLOR;
+        mDigitsColor = DEFAULT_DIGITS_COLOR;
+        mSectorBeforeArrowColor = DEFAULT_SECTOR_BEFORE_ARROW_COLOR;
+        mSectorAfterArrowColor = DEFAULT_SECTOR_AFTER_ARROW_COLOR;
+        mArrowRadius = convertDpToPixels(DEFAULT_ARROW_RADIUS, getContext());
+        mOuterCircleColor = DEFAULT_OUTER_CIRCLE_COLOR;
+        mArrowColor = DEFAULT_ARROW_COLOR;
+        mInternalSectorRadius = convertDpToPixels(DEFAULT_INTERNAL_SECTOR_RADIUS, getContext());
+        mExternalSectorRadius = convertDpToPixels(DEFAULT_EXTERNAL_SECTOR_RADIUS, getContext());
+        mMaximumSpeedometerSpeed = DEFAULT_MAXIMUM_SPEEDOMETER_SPEED;
+    }
+
+    private void init(){
+        setLayerToSW(this);
+
+        mSpeedChangeListenerList = new ArrayList<>();
+
+        mSpeed = 0;
+        mNotchesCount = mMaximumSpeedometerSpeed/getRevalidatedSpeedNotchingInterval(mMaximumSpeedometerSpeed);
+
+        mDialSpeedometerView = new DialSpeedometerView(getContext());
+        mDialSpeedometerView.init();
+        addView(mDialSpeedometerView);
+
+        mOilCanAndLevelView = new OilCanAndLevelView(getContext());
+        mOilCanAndLevelView.init();
+        addView(mOilCanAndLevelView);
+
+        mArrowAndSectorsView = new ArrowAndSectorsView(getContext());
+        mArrowAndSectorsView.init();
+        addView(mArrowAndSectorsView);
+
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+
+        int desiredWidth = convertDpToPixels(256, getContext());
+        int desiredHeight = convertDpToPixels(128, getContext());
+
+        int widthSize = MeasureSpec.getSize(widthMeasureSpec);
+        int widthMode = MeasureSpec.getMode(widthMeasureSpec);
+        int heightSize = MeasureSpec.getSize(heightMeasureSpec);
+        int heightMode = MeasureSpec.getMode(heightMeasureSpec);
+
+        int width;
+        int height;
+
+        if (widthMode == MeasureSpec.EXACTLY || widthMode == MeasureSpec.AT_MOST) {
+            width = widthSize;
+        } else {
+            width = desiredWidth;
+        }
+
+        if (heightMode == MeasureSpec.EXACTLY || heightMode == MeasureSpec.AT_MOST) {
+            height = heightSize;
+            if(height > width/2){
+                height = width/2;
+            }
+        } else {
+            height = desiredHeight;
+        }
+
+        //Log.e("SpeedometerView", "W="+width+"; H="+height+";");
+
+        setMeasuredDimension(width, height);
+    }
+
     @Override
     protected void onLayout(boolean changed, int l, int t, int r, int b) {
         // l, t, r, b - absolute numbers. To get relative - you must subtract t and l coordinate from r and b.
@@ -302,76 +392,19 @@ public class SpeedometerView extends ViewGroup {
     }
 
     @Override
-    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
-
-        int desiredWidth = convertDpToPixels(256, getContext());
-        int desiredHeight = convertDpToPixels(128, getContext());
-
-        int widthSize = MeasureSpec.getSize(widthMeasureSpec);
-        int widthMode = MeasureSpec.getMode(widthMeasureSpec);
-        int heightSize = MeasureSpec.getSize(heightMeasureSpec);
-        int heightMode = MeasureSpec.getMode(heightMeasureSpec);
-
-        int width;
-        int height;
-
-        if (widthMode == MeasureSpec.EXACTLY || widthMode == MeasureSpec.AT_MOST) {
-            width = widthSize;
-        } else {
-            width = desiredWidth;
-        }
-
-        if (heightMode == MeasureSpec.EXACTLY || heightMode == MeasureSpec.AT_MOST) {
-            height = heightSize;
-        } else {
-            height = desiredHeight;
-        }
-
-        //Log.e("SpeedometerView", "W="+width+"; H="+height+";");
-
-        setMeasuredDimension(width, height);
-    }
-
-    private void init(){
-        setLayerToSW(this);
-
-        mSpeedChangeListenerList = new ArrayList<>();
-
-        mSpeed = 0;
-        mNotchesCount = mMaximumSpeedometerSpeed/getRevalidatedSpeedNotchingInterval(mMaximumSpeedometerSpeed);
-
-        mDialSpeedometerView = new DialSpeedometerView(getContext());
-        mDialSpeedometerView.init();
-        addView(mDialSpeedometerView);
-
-        mOilCanAndLevelView = new OilCanAndLevelView(getContext());
-        mOilCanAndLevelView.init();
-        addView(mOilCanAndLevelView);
-
-        mArrowAndSectorsView = new ArrowAndSectorsView(getContext());
-        mArrowAndSectorsView.init();
-        addView(mArrowAndSectorsView);
-
-    }
-
-    @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
         canvas.drawColor(mBackgroundColor);
+
+        Log.e("SpeedometerView", "onDraw()");
     }
 
 
 
-    private void setLayerToSW(View v) {
-        setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-    }
-
-    private void setLayerToHW(View v) {
-        setLayerType(View.LAYER_TYPE_HARDWARE, null);
-    }
-
-
+    /*********************************************************************************************
+     * Views *
+     ********************************************************************************************/
 
     private class DialSpeedometerView extends View {
 
@@ -384,6 +417,18 @@ public class SpeedometerView extends ViewGroup {
         private Path mDigitsPath;
         private Matrix mDigitsMatrix;
         private RectF mOuterCircleOval;
+
+        private int mWidth;
+        private int mHeight;
+        private int mCenterX;
+        private int mCenterY;
+
+        private int mStrokeWidth;
+        private int mRadius;
+        private int mNotchingLength;
+        private int mRevalidatedSpeedNotchingInterval;
+        private int mNotchingsCount;
+        private double mAnglePart;
 
         public DialSpeedometerView(Context context) {
             super(context);
@@ -400,39 +445,47 @@ public class SpeedometerView extends ViewGroup {
             mDigitsMatrix = new Matrix();
             mOuterCircleOval = new RectF();
 
-            mOuterCirclePaint.setColor(mOuterCircleColor);
             mOuterCirclePaint.setStyle(Paint.Style.STROKE);
-            mNotchesPaint.setColor(mOuterCircleColor);
             mNotchesPaint.setStyle(Paint.Style.FILL);
-            mDigitsPaint.setColor(mDigitsColor);
             mDigitsPaint.setStyle(Paint.Style.FILL);
             mDigitsPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        }
+
+        @Override
+        protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+            mWidth = right - left;
+            mHeight = bottom - top;
+            mCenterX = mWidth/2;
+            mCenterY = mWidth/2;
+
+            mStrokeWidth = mWidth / STROKE_WIDTH_FROM_VIEW_WIDTH_DIVIDER;
+            mOuterCirclePaint.setStrokeWidth(mStrokeWidth);
+            mDigitsPaint.setTextSize(getWidth() * 1f / DIGITS_SIZE_FROM_VIEW_WIDTH_DIVIDER);
+
+            mRadius = mWidth/2 - OUTER_CIRCLE_MARGIN_TO_STROKE_WIDTH_MULTIPLIER * mStrokeWidth;
+            mNotchingLength = NOTCHING_LENGTH_TO_STROKE_WIDTH_MULTIPLIER * mStrokeWidth;
+
+            mRevalidatedSpeedNotchingInterval = getRevalidatedSpeedNotchingInterval(mMaximumSpeedometerSpeed);
+            mNotchingsCount = mMaximumSpeedometerSpeed/mRevalidatedSpeedNotchingInterval; //you need add 1 for angle calculation
+            mAnglePart = Math.PI/(mNotchingsCount+1);
+
+            super.onLayout(changed, left, top, right, bottom);
         }
 
         @Override
         protected void onDraw(Canvas canvas){
             super.onDraw(canvas);
 
-            int width = getWidth();
-            int centerX = width/2;
-            int centerY = width/2;
+            Log.e("DialSpeedometerView", "onDraw()");
 
-            int mStrokeWidth = width / STROKE_WIDTH_FROM_VIEW_WIDTH_DIVIDER;
-            int radius = width/2 - OUTER_CIRCLE_MARGIN_TO_STROKE_WIDTH_MULTIPLIER * mStrokeWidth;
-            int notchingLength = NOTCHING_LENGTH_TO_STROKE_WIDTH_MULTIPLIER * mStrokeWidth;
+            mOuterCirclePaint.setColor(mOuterCircleColor);
+            mNotchesPaint.setColor(mOuterCircleColor);
+            mDigitsPaint.setColor(mDigitsColor);
 
-            mOuterCirclePaint.setStrokeWidth(mStrokeWidth);
-            mDigitsPaint.setTextSize(getWidth() * 1f / DIGITS_SIZE_FROM_VIEW_WIDTH_DIVIDER);
-
-            mOuterCircleOval.set(centerX-radius, centerY - radius, centerX+radius, centerY+radius);
+            mOuterCircleOval.set(mCenterX-mRadius, mCenterY - mRadius, mCenterX+mRadius, mCenterY+mRadius);
             canvas.drawArc(mOuterCircleOval, 180, 180, false, mOuterCirclePaint);
 
-            // Notches and digits draw
-            int revalidatedSpeedNotchingInterval = getRevalidatedSpeedNotchingInterval(mMaximumSpeedometerSpeed);
-            int notchingsCount = mMaximumSpeedometerSpeed/revalidatedSpeedNotchingInterval; //you need add 1 for angle calculation
-            double anglePart = Math.PI/(notchingsCount+1);
             double alpha;
-
             int digits;
             String digitsString;
             float digitsWidth;
@@ -440,35 +493,35 @@ public class SpeedometerView extends ViewGroup {
 
             mNotchesPath.reset();
             mNotchesPath.addRect(
-                    centerX - radius,
-                    centerY - mStrokeWidth/2,
-                    centerX - radius + notchingLength,
-                    centerY + mStrokeWidth/2,
+                    mCenterX - mRadius,
+                    mCenterY - mStrokeWidth/2,
+                    mCenterX - mRadius + mNotchingLength,
+                    mCenterY + mStrokeWidth/2,
                     Path.Direction.CW);
             mNotchesMatrix.reset();
-            mNotchesMatrix.setRotate((float)radiansToDegrees(anglePart), centerX, centerY);
+            mNotchesMatrix.setRotate((float)radiansToDegrees(mAnglePart), mCenterX, mCenterY);
 
-            for (int i = 1; i <= notchingsCount; i++) {
-                alpha = anglePart * i;
+            for (int i = 1; i <= mNotchingsCount; i++) {
+                alpha = mAnglePart * i;
 
                 mNotchesPath.transform(mNotchesMatrix);
                 canvas.drawPath(mNotchesPath, mNotchesPaint);
 
-                digits = revalidatedSpeedNotchingInterval * i;
+                digits = mRevalidatedSpeedNotchingInterval * i;
                 digitsString = digits +"";
                 mDigitsPaint.getTextBounds(digitsString, 0, digitsString.length(), mDigitsBoundRect);
                 digitsWidth = mDigitsPaint.measureText(digitsString);
                 digitsHeight = mDigitsBoundRect.height();
 
-                int digitsPositionShift = centerX - radius + notchingLength + mStrokeWidth;
+                int digitsPositionShift = mCenterX - mRadius + mNotchingLength + mStrokeWidth;
                 mDigitsPath.reset();
-                mDigitsPath.moveTo(digitsPositionShift, centerY);
-                mDigitsPath.lineTo(digitsPositionShift + digitsWidth, centerY);
+                mDigitsPath.moveTo(digitsPositionShift, mCenterY);
+                mDigitsPath.lineTo(digitsPositionShift + digitsWidth, mCenterY);
                 mDigitsMatrix.reset();
-                mDigitsMatrix.setRotate((-1)*(float)radiansToDegrees(alpha), digitsPositionShift + digitsWidth/2, centerY);
+                mDigitsMatrix.setRotate((-1)*(float)radiansToDegrees(alpha), digitsPositionShift + digitsWidth/2, mCenterY);
                 mDigitsPath.transform(mDigitsMatrix);
                 mDigitsMatrix.reset();
-                mDigitsMatrix.setRotate((float)radiansToDegrees(alpha), centerX, centerY);
+                mDigitsMatrix.setRotate((float)radiansToDegrees(alpha), mCenterX, mCenterY);
                 mDigitsPath.transform(mDigitsMatrix);
                 canvas.drawTextOnPath(digitsString, mDigitsPath, 0, digitsHeight/2, mDigitsPaint);
             }
@@ -509,23 +562,14 @@ public class SpeedometerView extends ViewGroup {
             mSectorBeforeOval = new RectF();
             mSectorAfterOval = new RectF();
 
-            mArrowCenterPaint.setColor(mArrowColor);
             mArrowCenterPaint.setStyle(Paint.Style.FILL);
-            mArrowPaint.setColor(mArrowColor);
             mArrowPaint.setStyle(Paint.Style.FILL);
-
             mSectorBeforeArrowPaint.setStyle(Paint.Style.STROKE);
             mSectorAfterArrowPaint.setStyle(Paint.Style.STROKE);
-            mSectorBeforeArrowPaint.setColor(mSectorBeforeArrowColor);
-            mSectorAfterArrowPaint.setColor(mSectorAfterArrowColor);
-            mSectorBeforeArrowPaint.setStrokeWidth(mExternalSectorRadius - mInternalSectorRadius);
-            mSectorAfterArrowPaint.setStrokeWidth(mExternalSectorRadius - mInternalSectorRadius);
-
         }
 
         @Override
         protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-
             mWidth = right - left;
             mHeight = bottom - top;
             mCenterX = mWidth/2;
@@ -542,6 +586,15 @@ public class SpeedometerView extends ViewGroup {
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
+
+            Log.e("ArrowAndSectorsView", "onDraw()");
+
+            mArrowCenterPaint.setColor(mArrowColor);
+            mArrowPaint.setColor(mArrowColor);
+            mSectorBeforeArrowPaint.setColor(mSectorBeforeArrowColor);
+            mSectorAfterArrowPaint.setColor(mSectorAfterArrowColor);
+            mSectorBeforeArrowPaint.setStrokeWidth(mExternalSectorRadius - mInternalSectorRadius);
+            mSectorAfterArrowPaint.setStrokeWidth(mExternalSectorRadius - mInternalSectorRadius);
 
             mStartAngle = Math.PI * (mSpeed / mMaximumSpeedometerSpeed) * ((float) mNotchesCount /((float) mNotchesCount +1));
 
@@ -573,71 +626,143 @@ public class SpeedometerView extends ViewGroup {
         private Rect mOilCanRect;
         private Paint mLevelPaint;
 
+        /*
+        // RGBATxRGBA
         float[] cmData = new float[]{
                 1, 0, 0, 0, 0,
                 0, 1, 0, 0, 0,
                 0, 0, 1, 0, 0,
                 0, 0, 0, 1, 0 };
+        */
         float[] cmDataGreen = new float[]{
                 0, 0, 0, 0, 0,
                 0, 0, 0, 0, 255,
                 0, 0, 0, 0, 0,
                 0, 0, 0, 1, 0 };
+        float[] cmDataRed = new float[]{
+                0, 0, 0, 0, 255,
+                0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0,
+                0, 0, 0, 1, 0 };
 
-        ColorMatrix mColorMatrix;
-        ColorFilter mColorFilter;
+        ColorMatrix mColorGreenMatrix;
+        ColorMatrix mColorRedMatrix;
+        ColorFilter mColorGreenFilter;
+        ColorFilter mColorRedFilter;
+
+        private int mWidth;
+        private int mHeight;
+        private int mCenterX;
+        private int mCenterY;
+        private int mOilCanAndLevelViewWidth;
+        private int mOilCanAndLevelViewHeight;
+        private int mEnergyLevelXOffset;
+
+        private float mAlphaLevel;
+        private boolean isAlphaIncreasing;
 
         public OilCanAndLevelView(Context context) {
             super(context);
         }
 
         public void init(){
+            mAlphaLevel = 1.0f;
+            isAlphaIncreasing = false;
+
             mOilCanPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             mOilCanBitmap = BitmapFactory.decodeResource(this.getResources(), R.drawable.ic_oil);
             mOilCanRect = new Rect();
             mLevelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            mColorMatrix = new ColorMatrix(cmDataGreen);
-            mColorFilter = new ColorMatrixColorFilter(mColorMatrix);
 
-            mOilCanPaint.setColorFilter(mColorFilter);
-            mLevelPaint.setColorFilter(mColorFilter);
+            mColorGreenMatrix = new ColorMatrix(cmDataGreen);
+            mColorRedMatrix = new ColorMatrix(cmDataRed);
+            mColorGreenFilter = new ColorMatrixColorFilter(mColorGreenMatrix);
+            mColorRedFilter = new ColorMatrixColorFilter(mColorRedMatrix);
+
             mLevelPaint.setColor(0xff000000);
+        }
+
+        @Override
+        protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+            mWidth = right - left;
+            mHeight = bottom - top;
+            mCenterX = mWidth/2;
+            mCenterY = (int) (OIL_AND_LEVEL_VERTICAL_POSITION_TO_VIEW_HEIGHT_MULTIPLIER * mCenterX);
+
+            mOilCanAndLevelViewWidth = (int) (mWidth * OIL_AND_LEVEL_WIDTH_FROM_VIEW_WIDTH_MULTIPLIER);
+            mOilCanAndLevelViewHeight = mOilCanAndLevelViewWidth / 2;
+
+            super.onLayout(changed, left, top, right, bottom);
         }
 
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
 
-            int width = getWidth();
-            int centerX = width / 2;
-            int centerY = (int) (OIL_AND_LEVEL_VERTICAL_POSITION_TO_VIEW_HEIGHT_MULTIPLIER * centerX);
-            int oilCanAndLevelViewWidth = (int) (width * OIL_AND_LEVEL_WIDTH_FROM_VIEW_WIDTH_MULTIPLIER);
-            int oilCanAndLevelViewHeight = oilCanAndLevelViewWidth / 2;
+            Log.e("OilCanAndLevelView", "onDraw()");
 
-            /*
-            Log.e("OilCanAndLevelView", "width: "+width+"; height: "+height+"; centerX: "+centerX+"; centerY:"+centerY+
-                    "; oilW: "+oilCanAndLevelViewWidth+"; oilH: "+oilCanAndLevelViewHeight+";");
-            */
+            if (mEnergyLevel > ENERGY_LEVEL_CAN_EMPTY) {
+                mOilCanPaint.setColorFilter(mColorGreenFilter);
+                mLevelPaint.setColorFilter(mColorGreenFilter);
+            } else {
+                mOilCanPaint.setColorFilter(mColorRedFilter);
+                mLevelPaint.setColorFilter(mColorRedFilter);
+            }
+
+            if(mEnergyLevel < ENERGY_LEVEL_BLINK){
+                if(isAlphaIncreasing){
+                    mAlphaLevel+=ENERGY_LEVEL_BLINK_ALPHA_STEP;
+                    if(mAlphaLevel>1){
+                        mAlphaLevel = 1;
+                        isAlphaIncreasing = false;
+                    }
+                }
+                if(!isAlphaIncreasing){
+                    mAlphaLevel-=ENERGY_LEVEL_BLINK_ALPHA_STEP;
+                    if(mAlphaLevel<0){
+                        mAlphaLevel = 0;
+                        isAlphaIncreasing = true;
+                    }
+                }
+                mOilCanPaint.setAlpha((int)(mAlphaLevel*255));
+                mLevelPaint.setAlpha((int)(mAlphaLevel*255));
+            } else {
+                mOilCanPaint.setAlpha(255);
+                mLevelPaint.setAlpha(255);
+            }
 
             mOilCanRect.set(
-                    centerX - oilCanAndLevelViewWidth / 2,
-                    centerY - oilCanAndLevelViewHeight / 3,
-                    centerX - oilCanAndLevelViewWidth / 2 + oilCanAndLevelViewHeight * 2 / 3,
-                    centerY + oilCanAndLevelViewHeight / 3);
-
+                    mCenterX - mOilCanAndLevelViewWidth / 2,
+                    mCenterY - mOilCanAndLevelViewHeight / 3,
+                    mCenterX - mOilCanAndLevelViewWidth / 2 + mOilCanAndLevelViewHeight * 2 / 3,
+                    mCenterY + mOilCanAndLevelViewHeight / 3);
             canvas.drawBitmap(mOilCanBitmap, null, mOilCanRect, mOilCanPaint);
 
-            mLevelPaint.setStrokeWidth(width / STROKE_WIDTH_FROM_VIEW_WIDTH_DIVIDER);
+            mLevelPaint.setStrokeWidth(mWidth / STROKE_WIDTH_FROM_VIEW_WIDTH_DIVIDER);
+
+            mEnergyLevelXOffset = mOilCanAndLevelViewWidth / 2 - mOilCanAndLevelViewHeight * 15 / 24;
             canvas.drawLine(
-                    centerX - oilCanAndLevelViewWidth / 2 + oilCanAndLevelViewHeight * 15 / 24,
-                    centerY,
-                    centerX + oilCanAndLevelViewWidth / 2,
-                    centerY,
+                    mCenterX - mEnergyLevelXOffset,
+                    mCenterY,
+                    mCenterX - mEnergyLevelXOffset + mEnergyLevel * (mEnergyLevelXOffset+mOilCanAndLevelViewWidth / 2) / 100,
+                    mCenterY,
                     mLevelPaint);
         }
     }
 
 
+
+    /*********************************************************************************************
+     * Utils *
+     ********************************************************************************************/
+
+    private void setLayerToSW(View v) {
+        setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+    }
+
+    private void setLayerToHW(View v) {
+        setLayerType(View.LAYER_TYPE_HARDWARE, null);
+    }
 
     // Numbers bigger than 2000 no have sense, better idea to add x10 x100 x1000 multiplier mark.
     // 03/04/17 you can set maximum speed restriction and no need to calculate these values.
@@ -682,6 +807,7 @@ public class SpeedometerView extends ViewGroup {
             //do calculations
             if (isTrottlePedalPressed && mSpeed < mMaximumSpeedometerSpeed) {
                 mSpeed+=mArrowAccelerationSpeed;
+                mEnergyLevel-=mEnergyLevelChangeSpeed;
             }
             if (isBrakePedalPressed && mSpeed > 0) {
                 mSpeed-=2*mArrowAccelerationSpeed;
@@ -695,6 +821,9 @@ public class SpeedometerView extends ViewGroup {
             if(mSpeed<0){
                 mSpeed = 0;
             }
+            if(mEnergyLevel<0){
+                mEnergyLevel = 0;
+            }
 
             for (SpeedChangeListener speedChangeListener :
                     mSpeedChangeListenerList) {
@@ -704,7 +833,8 @@ public class SpeedometerView extends ViewGroup {
             if(isSwitchedOn){
                 postDelayed(this, 30);
             }
-            mArrowAndSectorsView.invalidate();
+
+            invalidate();
         }
     };
 

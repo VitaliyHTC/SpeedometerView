@@ -17,8 +17,8 @@
 
     <com.vitaliyhtc.speedometerview.SpeedometerView
         android:id="@+id/SpeedometerView"
-        android:layout_width="300dp"
-        android:layout_height="160dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_below="@+id/textView"
         android:layout_marginTop="16dp"
         android:layout_centerHorizontal="true"
@@ -59,6 +59,25 @@
         android:layout_below="@+id/SpeedometerView"
         android:layout_toStartOf="@+id/btn_brake"
         android:layout_toLeftOf="@+id/btn_brake"
+        />
+
+    <Button
+        android:id="@+id/btn_add_fuel"
+        android:layout_width="128dp"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/btn_trottle"
+        android:text="@string/fill_with_fuel"
+        android:textAllCaps="false"
+        />
+
+    <Button
+        android:id="@+id/btn_startSecondActivity"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerHorizontal="true"
+        android:layout_below="@+id/btn_add_fuel"
+        android:text="@string/start_second_activity"
+        android:textAllCaps="false"
         />
 
 </RelativeLayout>

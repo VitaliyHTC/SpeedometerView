@@ -2,4 +2,6 @@
     <string name="app_name">SpeedometerView</string>
     <string name="btn_brake">Brake</string>
     <string name="btn_trottle">Trottle</string>
+    <string name="fill_with_fuel">Fill with fuel!</string>
+    <string name="start_second_activity">Start Second Activity</string>
 </resources>
