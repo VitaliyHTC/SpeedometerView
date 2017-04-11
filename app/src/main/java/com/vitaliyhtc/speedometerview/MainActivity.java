@@ -102,7 +102,8 @@ public class MainActivity extends AppCompatActivity {
         mSpeedometerView.setOnSpeedChangeListener(new SpeedometerView.SpeedChangeListener() {
             @Override
             public void onSpeedChanged(int value) {
-                String speedText = ""+value;
+                // better to user String.valueOf(
+                String speedText = String.valueOf(value);
                 mSpeedTextView.setText(speedText);
             }
         });

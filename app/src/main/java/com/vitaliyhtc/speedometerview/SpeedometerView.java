@@ -125,6 +125,7 @@ public class SpeedometerView extends ViewGroup {
             mSectorAfterArrowColor = a.getColor(R.styleable.SpeedometerView_sv_sectorAfterArrowColor, DEFAULT_SECTOR_AFTER_ARROW_COLOR);
 
             float preArrowRadius = a.getDimension(R.styleable.SpeedometerView_sv_arrowRadius, convertDpToPixels(DEFAULT_ARROW_RADIUS, context));
+            // TODO: 11/04/17 don't repeat yourself call setter instead
             if (preArrowRadius > 0) {
                 mArrowRadius = preArrowRadius;
             } else {
@@ -342,8 +343,8 @@ public class SpeedometerView extends ViewGroup {
 
         if (heightMode == MeasureSpec.EXACTLY || heightMode == MeasureSpec.AT_MOST) {
             height = heightSize;
-            if(height > width/2){
-                height = width/2;
+            if (height > width / 2) {
+                height = width / 2;
             }
         } else {
             height = desiredHeight;
@@ -444,8 +445,8 @@ public class SpeedometerView extends ViewGroup {
         protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
             mWidth = right - left;
             mHeight = bottom - top;
-            mCenterX = mWidth/2;
-            mCenterY = mWidth/2;
+            mCenterX = mWidth / 2;
+            mCenterY = mWidth / 2;
 
             mStrokeWidth = mWidth / STROKE_WIDTH_FROM_VIEW_WIDTH_DIVIDER;
             mOuterCirclePaint.setStrokeWidth(mStrokeWidth);
@@ -504,6 +505,8 @@ public class SpeedometerView extends ViewGroup {
                 mDigitsPath.reset();
                 mDigitsPath.moveTo(digitsPositionShift, mCenterY);
                 mDigitsPath.lineTo(digitsPositionShift + digitsWidth, mCenterY);
+                // TODO: 11/04/17 why so complicated solution, why not just pretranslate and rotate after?
+                // check https://drive.google.com/file/d/0B7HaaehGeuRKMjlBMEZHWi1IMTA/view?usp=sharing
                 mDigitsMatrix.reset();
                 mDigitsMatrix.setRotate((-1)*(float)radiansToDegrees(alpha), digitsPositionShift + digitsWidth/2, mCenterY);
                 mDigitsPath.transform(mDigitsMatrix);
@@ -587,6 +590,8 @@ public class SpeedometerView extends ViewGroup {
             canvas.drawArc(mSectorAfterOval, 180+(float)radiansToDegrees(mStartAngle), 180-(float)radiansToDegrees(mStartAngle), false, mSectorAfterArrowPaint);
             canvas.drawCircle(mCenterX, mCenterY, mWidth / ARROW_CENTER_RADIUS_FROM_VIEW_WIDTH_DIVIDER, mArrowCenterPaint);
 
+
+            // TODO: 11/04/17 arrow not the same as in design
             mArrowPath.reset();
             mArrowPath.addRect(
                     mCenterX-mArrowRadius,
@@ -676,7 +681,7 @@ public class SpeedometerView extends ViewGroup {
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-
+            // TODO: 11/04/17 implement animated gradient from green to red using value animator
             if (mEnergyLevel > ENERGY_LEVEL_CAN_EMPTY) {
                 mOilCanPaint.setColorFilter(mColorGreenFilter);
                 mLevelPaint.setColorFilter(mColorGreenFilter);
@@ -684,6 +689,8 @@ public class SpeedometerView extends ViewGroup {
                 mOilCanPaint.setColorFilter(mColorRedFilter);
                 mLevelPaint.setColorFilter(mColorRedFilter);
             }
+
+            // TODO: 11/04/17 use value animator here no need to calculate all values
 
             if(mEnergyLevel < ENERGY_LEVEL_BLINK){
                 if(isAlphaIncreasing){
@@ -707,6 +714,7 @@ public class SpeedometerView extends ViewGroup {
                 mLevelPaint.setAlpha(255);
             }
 
+            // TODO: 11/04/17 rect changes in onLayout method, no need to calculate each time
             mOilCanRect.set(
                     mCenterX - mOilCanAndLevelViewWidth / 2,
                     mCenterY - mOilCanAndLevelViewHeight / 3,
