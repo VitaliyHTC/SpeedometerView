@@ -1,5 +1,7 @@
 package com.vitaliyhtc.speedometerview;
 
+import android.animation.TypeEvaluator;
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.TypedArray;
 import android.graphics.Bitmap;
@@ -45,7 +47,7 @@ public class SpeedometerView extends ViewGroup {
     private static final int OUTER_CIRCLE_MARGIN_TO_STROKE_WIDTH_MULTIPLIER = 2;
     private static final int NOTCHING_LENGTH_TO_STROKE_WIDTH_MULTIPLIER = 3;
     private static final int DIGITS_SIZE_FROM_VIEW_WIDTH_DIVIDER = 24;
-    private static final int ARROW_CENTER_RADIUS_FROM_VIEW_WIDTH_DIVIDER = 24;
+    private static final int ARROW_CENTER_RADIUS_FROM_VIEW_WIDTH_DIVIDER = 20;
     private static final int ARROW_WIDTH_FROM_VIEW_WIDTH_DIVIDER = 40;
 
     private static final float OIL_AND_LEVEL_VERTICAL_POSITION_TO_VIEW_HEIGHT_MULTIPLIER = (float) 1 / 2;
@@ -125,39 +127,19 @@ public class SpeedometerView extends ViewGroup {
             mSectorAfterArrowColor = a.getColor(R.styleable.SpeedometerView_sv_sectorAfterArrowColor, DEFAULT_SECTOR_AFTER_ARROW_COLOR);
 
             float preArrowRadius = a.getDimension(R.styleable.SpeedometerView_sv_arrowRadius, convertDpToPixels(DEFAULT_ARROW_RADIUS, context));
-            // TODO: 11/04/17 don't repeat yourself call setter instead
-            if (preArrowRadius > 0) {
-                mArrowRadius = preArrowRadius;
-            } else {
-                throw new IllegalArgumentException("Arrow radius must be positive, found " + preArrowRadius);
-            }
+            setArrowRadius(preArrowRadius);
 
             mOuterCircleColor = a.getColor(R.styleable.SpeedometerView_sv_outerCircleColor, DEFAULT_OUTER_CIRCLE_COLOR);
             mArrowColor = a.getColor(R.styleable.SpeedometerView_sv_arrowColor, DEFAULT_ARROW_COLOR);
 
             float preInternalSectorRadius = a.getDimension(R.styleable.SpeedometerView_sv_internalSectorRadius, convertDpToPixels(DEFAULT_INTERNAL_SECTOR_RADIUS, context));
-            if(preInternalSectorRadius > 0){
-                mInternalSectorRadius = preInternalSectorRadius;
-            }else{
-                throw new IllegalArgumentException("Internal sector radius must be positive, found " + preInternalSectorRadius);
-            }
+            setInternalSectorRadius(preInternalSectorRadius);
 
             float preExternalSectorRadius = a.getDimension(R.styleable.SpeedometerView_sv_externalSectorRadius, convertDpToPixels(DEFAULT_EXTERNAL_SECTOR_RADIUS, context));
-            if (preExternalSectorRadius > mInternalSectorRadius) {
-                mExternalSectorRadius = preExternalSectorRadius;
-            } else {
-                throw new IllegalArgumentException("External sector radius must be greater than internal sector radius, found " + preExternalSectorRadius);
-            }
+            setExternalSectorRadius(preExternalSectorRadius);
 
             int preMaximumSpeedometerSpeed = a.getInt(R.styleable.SpeedometerView_sv_maximumSpeedometerSpeed, DEFAULT_MAXIMUM_SPEEDOMETER_SPEED);
-            int revalidatedInterval = getRevalidatedSpeedNotchingInterval(preMaximumSpeedometerSpeed);
-            if(preMaximumSpeedometerSpeed > DEFAULT_BOTTOM_SPEEDOMETER_SPEED && preMaximumSpeedometerSpeed < DEFAULT_TOP_SPEEDOMETER_SPEED){
-                mMaximumSpeedometerSpeed = ((preMaximumSpeedometerSpeed+revalidatedInterval-1)/revalidatedInterval)*revalidatedInterval;
-            }else{
-                throw new IllegalArgumentException("Maximum speedometer speed must be greater than "
-                        +DEFAULT_BOTTOM_SPEEDOMETER_SPEED+", and less than "+DEFAULT_TOP_SPEEDOMETER_SPEED+
-                        ", found: "+preMaximumSpeedometerSpeed+";");
-            }
+            setMaximumSpeedometerSpeed(preMaximumSpeedometerSpeed);
         } finally {
             a.recycle();
         }
@@ -501,12 +483,20 @@ public class SpeedometerView extends ViewGroup {
                 digitsWidth = mDigitsPaint.measureText(digitsString);
                 digitsHeight = mDigitsBoundRect.height();
 
+                // TODO: 11/04/17 why so complicated solution, why not just pretranslate and rotate after?
+                // check https://drive.google.com/file/d/0B7HaaehGeuRKMjlBMEZHWi1IMTA/view?usp=sharing
+
+                // 12/04/17 i don't understand how it is possible to make it simpler.
+                // Notches are made in one path calculation and then only rotation.
+                // Digits need more complicated calculations for correct position on view.
+                // We can calculate position with sin&cos and simply draw on that place in one step or
+                // if not to use sin&cos - need 2 rotations for correct angle on view, and again calculations
+                // of width and height of text(digits) for correct positioning on view.
+
                 int digitsPositionShift = mCenterX - mRadius + mNotchingLength + mStrokeWidth;
                 mDigitsPath.reset();
                 mDigitsPath.moveTo(digitsPositionShift, mCenterY);
                 mDigitsPath.lineTo(digitsPositionShift + digitsWidth, mCenterY);
-                // TODO: 11/04/17 why so complicated solution, why not just pretranslate and rotate after?
-                // check https://drive.google.com/file/d/0B7HaaehGeuRKMjlBMEZHWi1IMTA/view?usp=sharing
                 mDigitsMatrix.reset();
                 mDigitsMatrix.setRotate((-1)*(float)radiansToDegrees(alpha), digitsPositionShift + digitsWidth/2, mCenterY);
                 mDigitsPath.transform(mDigitsMatrix);
@@ -591,14 +581,13 @@ public class SpeedometerView extends ViewGroup {
             canvas.drawCircle(mCenterX, mCenterY, mWidth / ARROW_CENTER_RADIUS_FROM_VIEW_WIDTH_DIVIDER, mArrowCenterPaint);
 
 
-            // TODO: 11/04/17 arrow not the same as in design
+
             mArrowPath.reset();
-            mArrowPath.addRect(
-                    mCenterX-mArrowRadius,
-                    mCenterY-mWidth/(ARROW_WIDTH_FROM_VIEW_WIDTH_DIVIDER*2),
-                    mCenterX,
-                    mCenterY+mWidth/(ARROW_WIDTH_FROM_VIEW_WIDTH_DIVIDER*2),
-                    Path.Direction.CW);
+            mArrowPath.moveTo(mCenterX, mCenterY - mWidth/ARROW_WIDTH_FROM_VIEW_WIDTH_DIVIDER);
+            mArrowPath.lineTo(mCenterX-mArrowRadius, mCenterY - mWidth/(ARROW_WIDTH_FROM_VIEW_WIDTH_DIVIDER*2));
+            mArrowPath.lineTo(mCenterX-mArrowRadius, mCenterY + mWidth/(ARROW_WIDTH_FROM_VIEW_WIDTH_DIVIDER*2));
+            mArrowPath.lineTo(mCenterX, mCenterY + mWidth/ARROW_WIDTH_FROM_VIEW_WIDTH_DIVIDER);
+            mArrowPath.close();
 
             mArrowMatrix.reset();
             mArrowMatrix.setRotate((float)radiansToDegrees(mStartAngle), mCenterX, mCenterY);
@@ -628,10 +617,9 @@ public class SpeedometerView extends ViewGroup {
                 0, 0, 0, 0, 0,
                 0, 0, 0, 1, 0 };
 
-        ColorMatrix mColorGreenMatrix;
-        ColorMatrix mColorRedMatrix;
+        ColorFilter mColorFilter;
+        private float mPreviousEnergyLevelValue;
         ColorFilter mColorGreenFilter;
-        ColorFilter mColorRedFilter;
 
         private int mWidth;
         private int mHeight;
@@ -641,26 +629,59 @@ public class SpeedometerView extends ViewGroup {
         private int mOilCanAndLevelViewHeight;
         private int mEnergyLevelXOffset;
 
-        private float mAlphaLevel;
-        private boolean isAlphaIncreasing;
+        private ValueAnimator mColorMatrixValueAnimatorGreenToRed;
+        private ValueAnimator mColorMatrixValueAnimatorRedToGreen;
+        private ValueAnimator mAlphaBlinkValueAnimator;
+        private boolean isAlphaBlinkRunning;
 
         public OilCanAndLevelView(Context context) {
             super(context);
         }
 
         public void init(){
-            mAlphaLevel = 1.0f;
-            isAlphaIncreasing = false;
+
+            mPreviousEnergyLevelValue = 100;
 
             mOilCanPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
             mOilCanBitmap = BitmapFactory.decodeResource(this.getResources(), R.drawable.ic_oil);
             mOilCanRect = new Rect();
             mLevelPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
-            mColorGreenMatrix = new ColorMatrix(cmDataGreen);
-            mColorRedMatrix = new ColorMatrix(cmDataRed);
-            mColorGreenFilter = new ColorMatrixColorFilter(mColorGreenMatrix);
-            mColorRedFilter = new ColorMatrixColorFilter(mColorRedMatrix);
+            mColorGreenFilter = new ColorMatrixColorFilter(new ColorMatrix(cmDataGreen));
+
+            mColorFilter = mColorGreenFilter;
+
+            mColorMatrixValueAnimatorGreenToRed = ValueAnimator.ofObject(new ColorMatrixEvaluator(), cmDataGreen, cmDataRed);
+            mColorMatrixValueAnimatorGreenToRed.setDuration(2000);
+            mColorMatrixValueAnimatorGreenToRed.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                @Override
+                public void onAnimationUpdate(ValueAnimator animation) {
+                    float[] cmData = (float[]) animation.getAnimatedValue();
+                    mColorFilter = new ColorMatrixColorFilter(new ColorMatrix(cmData));
+                }
+            });
+            mColorMatrixValueAnimatorRedToGreen = ValueAnimator.ofObject(new ColorMatrixEvaluator(), cmDataRed, cmDataGreen);
+            mColorMatrixValueAnimatorRedToGreen.setDuration(2000);
+            mColorMatrixValueAnimatorRedToGreen.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                @Override
+                public void onAnimationUpdate(ValueAnimator animation) {
+                    float[] cmData = (float[]) animation.getAnimatedValue();
+                    mColorFilter = new ColorMatrixColorFilter(new ColorMatrix(cmData));
+                }
+            });
+
+            mAlphaBlinkValueAnimator = ValueAnimator.ofFloat(1, 0);
+            mAlphaBlinkValueAnimator.setDuration(500);
+            mAlphaBlinkValueAnimator.setRepeatCount(ValueAnimator.INFINITE);
+            mAlphaBlinkValueAnimator.setRepeatMode(ValueAnimator.REVERSE);
+            mAlphaBlinkValueAnimator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+                @Override
+                public void onAnimationUpdate(ValueAnimator animation) {
+                    float value = (float) animation.getAnimatedValue();
+                    mOilCanPaint.setAlpha((int)(value*255));
+                    mLevelPaint.setAlpha((int)(value*255));
+                }
+            });
 
             mLevelPaint.setColor(0xff000000);
         }
@@ -675,51 +696,42 @@ public class SpeedometerView extends ViewGroup {
             mOilCanAndLevelViewWidth = (int) (mWidth * OIL_AND_LEVEL_WIDTH_FROM_VIEW_WIDTH_MULTIPLIER);
             mOilCanAndLevelViewHeight = mOilCanAndLevelViewWidth / 2;
 
+            mOilCanRect.set(
+                    mCenterX - mOilCanAndLevelViewWidth / 2,
+                    mCenterY - mOilCanAndLevelViewHeight / 3,
+                    mCenterX - mOilCanAndLevelViewWidth / 2 + mOilCanAndLevelViewHeight * 2 / 3,
+                    mCenterY + mOilCanAndLevelViewHeight / 3);
+
             super.onLayout(changed, left, top, right, bottom);
         }
 
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            // TODO: 11/04/17 implement animated gradient from green to red using value animator
-            if (mEnergyLevel > ENERGY_LEVEL_CAN_EMPTY) {
-                mOilCanPaint.setColorFilter(mColorGreenFilter);
-                mLevelPaint.setColorFilter(mColorGreenFilter);
-            } else {
-                mOilCanPaint.setColorFilter(mColorRedFilter);
-                mLevelPaint.setColorFilter(mColorRedFilter);
+
+            if (mPreviousEnergyLevelValue < ENERGY_LEVEL_CAN_EMPTY && mEnergyLevel >= ENERGY_LEVEL_CAN_EMPTY) {
+                mColorMatrixValueAnimatorRedToGreen.start();
             }
+            if (mPreviousEnergyLevelValue > ENERGY_LEVEL_CAN_EMPTY && mEnergyLevel <= ENERGY_LEVEL_CAN_EMPTY) {
+                mColorMatrixValueAnimatorGreenToRed.start();
+            }
+            mPreviousEnergyLevelValue = mEnergyLevel;
 
-            // TODO: 11/04/17 use value animator here no need to calculate all values
+            mOilCanPaint.setColorFilter(mColorFilter);
+            mLevelPaint.setColorFilter(mColorFilter);
 
-            if(mEnergyLevel < ENERGY_LEVEL_BLINK){
-                if(isAlphaIncreasing){
-                    mAlphaLevel+=ENERGY_LEVEL_BLINK_ALPHA_STEP;
-                    if(mAlphaLevel>1){
-                        mAlphaLevel = 1;
-                        isAlphaIncreasing = false;
-                    }
+            if (mEnergyLevel < ENERGY_LEVEL_BLINK) {
+                if(!isAlphaBlinkRunning){
+                    isAlphaBlinkRunning = true;
+                    mAlphaBlinkValueAnimator.start();
                 }
-                if(!isAlphaIncreasing){
-                    mAlphaLevel-=ENERGY_LEVEL_BLINK_ALPHA_STEP;
-                    if(mAlphaLevel<0){
-                        mAlphaLevel = 0;
-                        isAlphaIncreasing = true;
-                    }
-                }
-                mOilCanPaint.setAlpha((int)(mAlphaLevel*255));
-                mLevelPaint.setAlpha((int)(mAlphaLevel*255));
             } else {
+                isAlphaBlinkRunning = false;
+                mAlphaBlinkValueAnimator.cancel();
                 mOilCanPaint.setAlpha(255);
                 mLevelPaint.setAlpha(255);
             }
 
-            // TODO: 11/04/17 rect changes in onLayout method, no need to calculate each time
-            mOilCanRect.set(
-                    mCenterX - mOilCanAndLevelViewWidth / 2,
-                    mCenterY - mOilCanAndLevelViewHeight / 3,
-                    mCenterX - mOilCanAndLevelViewWidth / 2 + mOilCanAndLevelViewHeight * 2 / 3,
-                    mCenterY + mOilCanAndLevelViewHeight / 3);
             canvas.drawBitmap(mOilCanBitmap, null, mOilCanRect, mOilCanPaint);
 
             mLevelPaint.setStrokeWidth(mWidth / STROKE_WIDTH_FROM_VIEW_WIDTH_DIVIDER);
@@ -731,6 +743,38 @@ public class SpeedometerView extends ViewGroup {
                     mCenterX - mEnergyLevelXOffset + mEnergyLevel * (mEnergyLevelXOffset+mOilCanAndLevelViewWidth / 2) / 100,
                     mCenterY,
                     mLevelPaint);
+        }
+
+
+
+        private class ColorMatrixEvaluator implements TypeEvaluator {
+            @Override
+            public Object evaluate(float fraction, Object startValue, Object endValue) {
+                float[] cmDataStart = (float[]) startValue;
+                float[] cmDataEnd = (float[]) endValue;
+                return new float[]{
+                        cmDataStart[0] + fraction * (cmDataEnd[0] - cmDataStart[0]),
+                        cmDataStart[1] + fraction * (cmDataEnd[1] - cmDataStart[1]),
+                        cmDataStart[2] + fraction * (cmDataEnd[2] - cmDataStart[2]),
+                        cmDataStart[3] + fraction * (cmDataEnd[3] - cmDataStart[3]),
+                        cmDataStart[4] + fraction * (cmDataEnd[4] - cmDataStart[4]),
+                        cmDataStart[5] + fraction * (cmDataEnd[5] - cmDataStart[5]),
+                        cmDataStart[6] + fraction * (cmDataEnd[6] - cmDataStart[6]),
+                        cmDataStart[7] + fraction * (cmDataEnd[7] - cmDataStart[7]),
+                        cmDataStart[8] + fraction * (cmDataEnd[8] - cmDataStart[8]),
+                        cmDataStart[9] + fraction * (cmDataEnd[9] - cmDataStart[9]),
+                        cmDataStart[10] + fraction * (cmDataEnd[10] - cmDataStart[10]),
+                        cmDataStart[11] + fraction * (cmDataEnd[11] - cmDataStart[11]),
+                        cmDataStart[12] + fraction * (cmDataEnd[12] - cmDataStart[12]),
+                        cmDataStart[13] + fraction * (cmDataEnd[13] - cmDataStart[13]),
+                        cmDataStart[14] + fraction * (cmDataEnd[14] - cmDataStart[14]),
+                        cmDataStart[15] + fraction * (cmDataEnd[15] - cmDataStart[15]),
+                        cmDataStart[16] + fraction * (cmDataEnd[16] - cmDataStart[16]),
+                        cmDataStart[17] + fraction * (cmDataEnd[17] - cmDataStart[17]),
+                        cmDataStart[18] + fraction * (cmDataEnd[18] - cmDataStart[18]),
+                        cmDataStart[19] + fraction * (cmDataEnd[19] - cmDataStart[19])
+                };
+            }
         }
     }
 

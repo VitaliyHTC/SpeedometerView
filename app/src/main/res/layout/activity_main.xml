@@ -24,7 +24,7 @@
         android:layout_centerHorizontal="true"
         custom:sv_backgroundColor="#ffffffff"
         custom:sv_digitsColor="#ff37474F"
-        custom:sv_arrowRadius="100dp"
+        custom:sv_arrowRadius="120dp"
         custom:sv_outerCircleColor="#ff424242"
         custom:sv_internalSectorRadius="24dp"
         custom:sv_externalSectorRadius="48dp"
